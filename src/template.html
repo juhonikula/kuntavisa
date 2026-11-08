@@ -13,7 +13,7 @@
     --hover: #c9d6e1; --ok: #2e9e5b; --ok2: #d6a21e; --bad: #d64545; --accent: #1f5fa8; --card: #fff;
     --dim: #f0f3f6; --dimS: #e2e7eb;
     --s0: #6da7ec; --s1: #4a90e2; --s2: #2a78d6; --s3: #1c5cab; --s4: #0d366b;
-    --fs: 1;
+    --fs: 1; --mfs: 1;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) { --bg: #11161b; --fg: #e8edf2; --muted: #93a1ae; --land: #26313b;
@@ -88,30 +88,36 @@
   .overlay { position: fixed; inset: 0; background: rgba(10,15,20,.55); display: flex;
     align-items: center; justify-content: center; padding: 16px; z-index: 5; }
   .overlay[hidden] { display: none; }
+  /* Menu cards have their own text size (--mfs), independent of the game's --fs: the card sets an
+     absolute base size and everything inside it is in em. */
   .card { position: relative; background: var(--card); border-radius: 14px; padding: 22px; max-width: 380px;
-    width: 100%; max-height: 90vh; overflow: auto; box-shadow: 0 10px 40px rgba(0,0,0,.25); }
-  .card h1 { margin: 0 0 6px; font-size: 1.5rem; padding-right: 32px; }
+    width: 100%; max-height: 90vh; overflow: auto; box-shadow: 0 10px 40px rgba(0,0,0,.25);
+    font-size: calc(16px * var(--mfs)); }
+  .pair { display: flex; gap: 8px; }
+  .pair button.main { flex: 1; text-align: center; }
+  #hsTries { margin-top: 14px; }
+  .card h1 { margin: 0 0 6px; font-size: 1.5em; padding-right: 32px; }
   .card p { margin: 6px 0; color: var(--muted); }
-  .big { font-size: 2.5rem; font-weight: 800; color: var(--fg); margin: 8px 0 0; font-variant-numeric: tabular-nums; }
-  .card ul { padding-left: 18px; margin: 6px 0; color: var(--fg); columns: 2; column-gap: 16px; font-size: .875rem; }
+  .big { font-size: 2.5em; font-weight: 800; color: var(--fg); margin: 8px 0 0; font-variant-numeric: tabular-nums; }
+  .card ul { padding-left: 18px; margin: 6px 0; color: var(--fg); columns: 2; column-gap: 16px; font-size: .875em; }
   .card p.rank { color: var(--accent); font-weight: 600; }
   button.x { position: absolute; top: 10px; right: 10px; width: 36px; height: 36px; border: 0; border-radius: 8px;
-    background: transparent; color: var(--muted); font: inherit; font-size: 1.25rem; cursor: pointer; }
+    background: transparent; color: var(--muted); font: inherit; font-size: 1.25em; cursor: pointer; }
   button.main { font: inherit; font-weight: 600; border: 0; border-radius: 10px; padding: 12px 18px;
     background: var(--accent); color: #fff; width: 100%; margin-top: 12px; cursor: pointer; text-align: left; }
-  button.main small { display: block; font-weight: 400; opacity: .85; font-size: .8125rem; }
+  button.main small { display: block; font-weight: 400; opacity: .85; font-size: .8125em; }
   button.sec { background: var(--land); color: var(--fg); }
   button.ghost { font: inherit; border: 0; background: transparent; color: var(--muted); padding: 8px 4px;
-    margin-top: 6px; font-size: .875rem; cursor: pointer; }
+    margin-top: 6px; font-size: .875em; cursor: pointer; }
   /* settings: one segmented control per setting */
   .set { margin-top: 12px; }
-  .set > span { display: block; font-size: .8125rem; color: var(--muted); margin-bottom: 4px; }
+  .set > span { display: block; font-size: .8125em; color: var(--muted); margin-bottom: 4px; }
   .seg { display: flex; gap: 4px; background: var(--land); border-radius: 10px; padding: 3px; }
-  .seg button { flex: 1; font: inherit; font-size: .875rem; border: 0; background: transparent; color: var(--fg);
+  .seg button { flex: 1; font: inherit; font-size: .875em; border: 0; background: transparent; color: var(--fg);
     padding: 7px 4px; border-radius: 8px; cursor: pointer; }
   .seg button.on { background: var(--card); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
   /* high score list: one row per scope, <details> expands the top 5 */
-  .hs { margin-top: 10px; font-size: .875rem; }
+  .hs { margin-top: 10px; font-size: .875em; }
   .hs details, .hs .nr { border-top: 1px solid var(--land); }
   .hs summary, .hs .nr { display: flex; gap: 10px; padding: 7px 2px; list-style: none; }
   .hs summary { cursor: pointer; }
@@ -121,7 +127,7 @@
   .hs b.v { color: var(--fg); }
   .hs ol { margin: 0 0 8px; padding-left: 24px; color: var(--muted); font-variant-numeric: tabular-nums; }
   /* CC BY 4.0 source attribution in the start menu */
-  .card p.credit { margin-top: 14px; font-size: .6875rem; line-height: 1.35; }
+  .card p.credit { margin-top: 14px; font-size: .6875em; line-height: 1.35; }
   .credit a { color: inherit; }
 </style>
 </head>
@@ -158,8 +164,10 @@
     <button class="main" id="modeMk">Maakunta<small>Valitse maakunta kartalta ja tunnista sen kunnat</small></button>
     <button class="main" id="modeAll">Koko Suomi<small>Kaikki 308 kuntaa satunnaisessa järjestyksessä</small></button>
     <button class="main sec" id="resumeAll" hidden></button>
-    <button class="ghost" id="openScores">Ennätykset</button>
-    <button class="ghost" id="openSettings">Asetukset</button>
+    <div class="pair">
+      <button class="main sec" id="openScores">Ennätykset</button>
+      <button class="main sec" id="openSettings">Asetukset</button>
+    </div>
     <p class="credit">Kunta- ja maakuntarajat: Tilastokeskus, ladattu rajapintapalvelusta 07.11.2026,
       <a href="https://creativecommons.org/licenses/by/4.0/deed.fi" target="_blank" rel="noopener">CC BY 4.0</a></p>
   </div>
@@ -186,9 +194,9 @@
   <div class="card">
     <button class="x" data-back title="Sulje">✕</button>
     <h1>Ennätykset</h1>
+    <button class="main" id="openStats">Tilastokartta<small>Näe kartalta, missä olet paras</small></button>
     <div class="seg" id="hsTries"><button data-v="3">3 yritystä</button><button data-v="1">1 yritys</button></div>
     <div class="hs" id="hsList"></div>
-    <button class="ghost" id="openStats">Tilastokartta: missä olen paras</button>
   </div>
 </div>
 
@@ -197,8 +205,10 @@
   <div class="card">
     <button class="x" data-back title="Sulje">✕</button>
     <h1>Asetukset</h1>
-    <div class="set"><span>Tekstin koko</span>
+    <div class="set"><span>Pelin tekstin koko</span>
       <div class="seg" data-key="fs"><button data-v="s">Pieni</button><button data-v="m">Normaali</button><button data-v="l">Suuri</button></div></div>
+    <div class="set"><span>Valikoiden tekstin koko</span>
+      <div class="seg" data-key="mfs"><button data-v="s">Pieni</button><button data-v="m">Normaali</button><button data-v="l">Suuri</button></div></div>
     <div class="set"><span>Teema</span>
       <div class="seg" data-key="theme"><button data-v="auto">Auto</button><button data-v="light">Vaalea</button><button data-v="dark">Tumma</button></div></div>
     <div class="set"><span>Yrityksiä per kunta (seuraavasta pelistä alkaen)</span>
@@ -229,7 +239,7 @@ function load(key, def) {
 function store(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (_) {} }
 
 const FS = { s: 0.875, m: 1, l: 1.2 };        // text size setting -> rem scale
-const settings = { fs: "m", theme: "auto", tries: "3", anim: "on", shade: "on", ...load(SETTINGS_KEY, {}) };
+const settings = { fs: "m", mfs: "m", theme: "auto", tries: "3", anim: "on", shade: "on", ...load(SETTINGS_KEY, {}) };
 const scores = load(SCORES_KEY, {});
 const stats = load(STATS_KEY, {});
 
@@ -730,6 +740,7 @@ $("openStats").onclick = () => {
 function applySettings() {
   const root = document.documentElement;
   root.style.setProperty("--fs", FS[settings.fs]);
+  root.style.setProperty("--mfs", FS[settings.mfs]);
   if (settings.theme === "auto") delete root.dataset.theme; else root.dataset.theme = settings.theme;
   root.classList.toggle("calm", settings.anim === "off");
   for (const seg of document.querySelectorAll("#settings .seg"))

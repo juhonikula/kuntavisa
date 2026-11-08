@@ -21,8 +21,8 @@ Rules are the same in both modes:
 Menus and extras:
 - **☰ menu:** its ✕ (or Esc) returns to whatever was open before: the running round (the clock resumes), the region pick, the end card or the stats map.
 - **Ennätykset:** the top 5 results per region and for Koko Suomi, kept separately for 1 and 3 tries. Ranked by first-try hits, then fewer misses, then time.
-- **Tilastokartta** (at the bottom of the Ennätykset card): every municipality, or with the toggle every region, coloured by its all-time first-try share. Tapping shows the numbers.
-- **Asetukset:** text size, theme, tries per municipality, reduced animations, and whether the region pick map is shaded by best score.
+- **Tilastokartta** (the top button of the Ennätykset card): every municipality, or with the toggle every region, coloured by its all-time first-try share. Tapping shows the numbers.
+- **Asetukset:** game text size, menu text size, theme, tries per municipality, reduced animations, and whether the region pick map is shaded by best score.
 
 The UI language is Finnish, and municipalities use their Finnish names (`nimi`).
 
@@ -157,7 +157,7 @@ All `localStorage` access goes through `load()`/`store()`, which wrap it in try/
 | `kuntavisa-koko-v1` | The running Koko Suomi `game`, saved after every answer and removed when the round finishes. Practice rounds are never saved. |
 | `kuntavisa-scores-v1` | `{"<regionId or all>|<tries>": [{h, n, miss, ms, d}…]}`, top 5 per key, best first. |
 | `kuntavisa-stats-v1` | `{kuntaId: [seen, firstTry, laterTry, failed]}` over all rounds, practice included. |
-| `kuntavisa-settings-v1` | `{fs, theme, tries, anim, shade}`. `applySettings()` turns it into the `--fs` CSS variable (all sizes are in `rem`), `data-theme` and the `calm` class on `<html>`. |
+| `kuntavisa-settings-v1` | `{fs, mfs, theme, tries, anim, shade}`. `applySettings()` turns it into CSS variables on `<html>`: `--fs` for the game (header and toast sizes are in `rem`) and `--mfs` for the menu cards (`.card` sets an absolute base size and its contents are in `em`). It also sets `data-theme` and the `calm` class. |
 
 ### Labels (review view)
 - Labels are built on demand: municipality names after a round ("Näytä kartta nimillä"), region names in the pick phase and behind the menu.
@@ -180,7 +180,6 @@ It prints page errors and writes screenshots `a0…a5` and `b1…b3`. It does no
 - **Label placement** uses the centroid of the largest ring. For concave or archipelago municipalities it can fall outside the shape or in the sea. A pole-of-inaccessibility calculation (polylabel) in `build_data.py` would fix this.
 - **No lakes layer.** Large lakes (Saimaa, Päijänne) aren't drawn, which makes eastern Finland harder to read.
 - **Small municipalities** in Koko Suomi (Kauniainen, Ahvenanmaa municipalities) still need some zooming. Tap tolerance only helps when the tap lands on sea or background, not on a larger neighbour.
-- **Zoom performance** is improved but unmeasured. If it is still choppy on phones, the next step is a CSS transform on the SVG during gestures, with a sharp `viewBox` redraw on release.
 - **Scores and stats are per browser.** Clearing site data deletes them, and there is no export.
 - **Independent simplification** leaves hairline gaps between neighbours at very high zoom. A real fix is topology-preserving simplification, e.g. mapshaper `-simplify` with shared arcs, or TopoJSON.
 - **The data is embedded in the HTML** (~830 KB) to keep the app a single file. If it becomes a multi-file site, `data.json` could be fetched instead and cached separately.
