@@ -136,6 +136,10 @@
   #playType { margin: 10px 0 4px; }
   #hsType { margin-top: 14px; }
   #hsTries { margin-top: 6px; }
+  /* stats map: one labelled toggle per row in the header */
+  .ctl { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+  .ctl > span { width: 4.5rem; font-size: .8125rem; color: var(--muted); }
+  .ctl .seg { flex: 1; }
   /* CC BY 4.0 source attribution in the start menu */
   .card p.credit { margin-top: 14px; font-size: .6875em; line-height: 1.35; }
   .credit a { color: inherit; }
@@ -155,6 +159,12 @@
   <div class="bar"><i id="bar"></i></div>
   <div class="prompt" id="prompt">&nbsp;</div>
   <div class="target" id="target">&nbsp;</div>
+  <div id="statsCtl" hidden>
+    <div class="ctl"><span>Pelitapa</span>
+      <div class="seg" id="stType"><button data-v="tap">Napauta</button><button data-v="text">Kirjoita</button></div></div>
+    <div class="ctl"><span>Näytä</span>
+      <div class="seg" id="stView"><button data-v="k">Kunnat</button><button data-v="m">Maakunnat</button></div></div>
+  </div>
   <div class="row" id="typeRow" hidden>
     <input class="type" id="typeIn" type="text" autocomplete="off" autocorrect="off" autocapitalize="none"
            spellcheck="false" enterkeyhint="done" placeholder="Kirjoita kunnan nimi">
@@ -568,8 +578,9 @@ function paint() {                               // apply per-kunta classes from
 }
 
 function hud() {
-  const typing = isText() && !game.over;
-  $("typeRow").hidden = !typing; $("target").hidden = typing;
+  const typing = isText() && !game.over, statsView = !!game && game.mode === "stats";
+  $("typeRow").hidden = !typing; $("statsCtl").hidden = !statsView;
+  $("target").hidden = typing || statsView;
   if (!game || !game.order) {
     $("progress").textContent = ""; $("score").textContent = ""; $("timer").textContent = "";
     $("bar").style.width = "0"; return;
@@ -623,25 +634,19 @@ function pickPhase(type = settings.play) {
 }
 
 // Stats map (reached from the high score card): colour by first-try share (tap) or found share
-// (text), per kunta or region. Header buttons switch the type and the view.
+// (text), per kunta or region. Two toggles in the header (#statsCtl) switch the type and the view.
 function statsMap(type, view, keepView) {
   stopClock();
   game = { mode: "stats", type, view, status: {}, order: null };
   paint(); hud();
   $("prompt").innerHTML = (type === "text" ? "Löydetty: " : "Ensimmäisellä oikein: ") + LEGEND;
-  $("target").innerHTML = "";
-  // [type, view, label, active]: the first two switch the type, the last two the view.
-  for (const [t, v, txt, on] of [["tap", view, "Napauta", type === "tap"], ["text", view, "Kirjoita", type === "text"],
-                                 [type, "k", "Kunnat", view === "k"], [type, "m", "Maakunnat", view === "m"]]) {
-    const b = document.createElement("button");
-    b.className = "icon" + (on ? " on" : "");
-    b.textContent = txt;
-    b.onclick = () => statsMap(t, v, true);
-    $("target").appendChild(b);
-  }
+  for (const b of $("stType").children) b.classList.toggle("on", b.dataset.v === type);
+  for (const b of $("stView").children) b.classList.toggle("on", b.dataset.v === view);
   setLabels(view === "m" ? "mk" : "k", Object.keys(K));
   if (!keepView) animateTo(fitView(), 500);
 }
+for (const b of $("stType").children) b.onclick = () => statsMap(b.dataset.v, game.view, true);
+for (const b of $("stView").children) b.onclick = () => statsMap(game.type, b.dataset.v, true);
 
 // ---------- persistence (Koko Suomi only; best effort) ----------
 const saveKey = type => type === "text" ? TEXT_SAVE_KEY : SAVE_KEY;   // old saves have no type = tap
