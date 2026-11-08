@@ -12,6 +12,13 @@ Live version: https://juhonikula.github.io/kuntavisa/
 | **Koko Suomi** | All 308 municipalities in random order, with region borders drawn thicker. Progress is saved to `localStorage` after every answer and can be resumed from the menu. |
 | **Harjoitus** | Offered on the end card when something was missed: replays only the missed municipalities. Not scored and not saved. |
 
+Both modes come in two play types, chosen with the **Napauta / Kirjoita** switch at the top of the menu:
+
+| Type | Flow |
+|---|---|
+| **Napauta** | The name is shown, you tap the municipality (rules below). |
+| **Kirjoita** | No prompt: you type municipality names in any order. A name of the round that isn't found yet is accepted on the keystroke that completes it, turns green, gets a label, and the input clears. Matching ignores case, diacritics (ä = a, ö = o, å = a), spaces and hyphens. A shorter name wins over a longer one it starts (Eura is accepted before Eurajoki can be typed; then type Eurajoki again). A name that is already found or outside the round only gets a notice, and only when it can't be the start of a longer name, so typing Iitti isn't cut off at Ii. The round ends when everything is found or with **Luovuta** (tap twice), which turns the rest red. No time limit. In a region round or a practice round, everything outside the set is dimmed. |
+
 Rules are the same in both modes:
 - 3 tries per municipality, or 1 in the settings' hard mode (`game.max`).
 - First-try hit: green (`ok1`). Hit on a later try: yellow (`ok2`). Not found after the last miss: red (`fail`), and the correct municipality blinks.
@@ -20,9 +27,9 @@ Rules are the same in both modes:
 
 Menus and extras:
 - **☰ menu:** its ✕ (or Esc) returns to whatever was open before: the running round (the clock resumes), the region pick, the end card or the stats map.
-- **Ennätykset:** the top 5 results per region and for Koko Suomi, kept separately for 1 and 3 tries. Ranked by first-try hits, then fewer misses, then time.
-- **Tilastokartta** (the top button of the Ennätykset card): every municipality, or with the toggle every region, coloured by its all-time first-try share. Tapping shows the numbers.
-- **Asetukset:** game text size, menu text size, theme, tries per municipality, reduced animations, and whether the region pick map is shaded by best score.
+- **Ennätykset:** the top 5 results per region and for Koko Suomi. Napauta results are kept separately for 1 and 3 tries and ranked by first-try hits, then fewer misses, then time. Kirjoita results have their own list, ranked by names found, then time.
+- **Tilastokartta** (the top button of the Ennätykset card): every municipality, or with the toggle every region, coloured by its all-time first-try share (Napauta) or the share of rounds it was found in (Kirjoita). Tapping shows the numbers.
+- **Asetukset:** game text size, menu text size, theme, region borders (when off, they are still shown on the region pick map), tries per municipality in Napauta, reduced animations, and whether the region pick map is shaded by best score.
 
 The UI language is Finnish, and municipalities use their Finnish names (`nimi`).
 
@@ -129,35 +136,41 @@ The script is a single `<script>` block divided into commented sections.
 - The mouse `wheel` zooms with `exp(-deltaY * 0.0015)`.
 - **Tap detection:** on the final `pointerup`, if the gesture never moved and never had two pointers, `document.elementFromPoint()` resolves the tapped `path.k` through `data-id`. The page doesn't listen for `click`, so a pan can never register as an answer.
 - **Tap tolerance:** `tapTarget()` returns the exact hit first. If the tap landed on sea or background, it probes 8 directions at 5 px and then 10 px and takes the first municipality found. Dimmed paths have `pointer-events: none`, so the probe never finds them.
+- In Kirjoita the input keeps focus: touching the map would blur it and close a phone keyboard, so `endPtr()` focuses it again after every gesture.
 
 ### Game state
 ```js
-game = { mode: "mk" | "all" | "menu" | "stats", mk: regionId | null, view /*stats: "k" | "m"*/,
-         practice, order: [kuntaId…], idx, max /*tries setting*/, tries, firstTry, totalMiss,
+game = { mode: "mk" | "all" | "menu" | "stats", type: "tap" | "text", mk: regionId | null,
+         view /*stats: "k" | "m"*/, practice, over /*text: finished or given up*/,
+         order: [kuntaId…], idx, max /*tries setting*/, tries, firstTry /*text: names found*/, totalMiss,
          failed: [name…], failedIds: [kuntaId…], status: { kuntaId: "ok1" | "ok2" | "fail" },
          elapsed /*ms banked*/, t0 /*running-since timestamp or 0*/, locked }
 ```
-- `paint()` derives every path's `class` from `game.status`, `game.mk` and `shading()`. `shading()` returns a ramp step `s0…s4` (20 % bands) per municipality: on the pick map from the best score of its region, on the stats map from the per-municipality or per-region first-try share. That makes rendering idempotent, and a restored save repaints correctly. Transient animations (`flash`, `reveal`) are added on top of the classes and removed afterwards.
+- `paint()` derives every path's `class` from `game.status`, `game.mk` and `shading()`. `shading()` returns a ramp step `s0…s4` (20 % bands) per municipality: on the pick map from the best score of its region, on the stats map from the per-municipality or per-region share in the chosen type's stats. `paint()` also hides `#gM` when region borders are off, except on the pick map. That makes rendering idempotent, and a restored save repaints correctly. Transient animations (`flash`, `reveal`) are added on top of the classes and removed afterwards.
 - `onTap(id)` is the state machine:
   - In region-pick phase it starts a round.
   - A correct tap goes to `advance()`.
   - A wrong tap decrements `tries`.
   - At zero tries it marks the municipality `fail`, calls `revealInView()` and sets `locked` for 1.7 s (0.7 s with reduced animations) before advancing. ☰ is ignored while `locked`.
   - Every resolved municipality updates the per-municipality stats (`record()`).
+  - In Kirjoita, taps only show the names of municipalities already found. Answers come from the `input` handler on `#typeIn`, which looks up `BY_NAME[norm(text)]`. `PREFIX` holds the normalised names that start another name.
+- `running()` tells whether a round is in progress for either type: it decides whether the menu's ✕ restarts the clock and whether a Koko Suomi save is kept.
 - `revealInView()` pans the view, and zooms if needed, so the missed municipality is on screen and at least ~18 px wide (it targets ~40 px).
 - The clock is `elapsed` plus `(now − t0)`. `stopClock()` banks the running time into `elapsed`; the menu and the end screen stop it, and the menu's ✕ restarts it.
 - `menuReturn` records what the menu's ✕ goes back to (`null` at startup, otherwise whether the end card was open).
-- `finish()` calls `addScore()`, which inserts the result into the top 5 and returns its rank for the end card.
+- `finish()` calls `addScore()`, which inserts the result into the top 5 and returns its rank for the end card. For Kirjoita it also calls `recordText()`.
 
 ### Persistence
 All `localStorage` access goes through `load()`/`store()`, which wrap it in try/catch because storage can be unavailable in sandboxed iframes. If a format changes, bump its key suffix.
 
 | Key | Contents |
 |---|---|
-| `kuntavisa-koko-v1` | The running Koko Suomi `game`, saved after every answer and removed when the round finishes. Practice rounds are never saved. |
-| `kuntavisa-scores-v1` | `{"<regionId or all>|<tries>": [{h, n, miss, ms, d}…]}`, top 5 per key, best first. |
-| `kuntavisa-stats-v1` | `{kuntaId: [seen, firstTry, laterTry, failed]}` over all rounds, practice included. |
-| `kuntavisa-settings-v1` | `{fs, mfs, theme, tries, anim, shade}`. `applySettings()` turns it into CSS variables on `<html>`: `--fs` for the game (header and toast sizes are in `rem`) and `--mfs` for the menu cards (`.card` sets an absolute base size and its contents are in `em`). It also sets `data-theme` and the `calm` class. |
+| `kuntavisa-koko-v1` | The running Koko Suomi Napauta `game`, saved after every answer and removed when the round finishes. Practice rounds are never saved. |
+| `kuntavisa-koko-teksti-v1` | The same for a Koko Suomi Kirjoita game. The menu's resume button offers the one matching the Napauta / Kirjoita switch. |
+| `kuntavisa-scores-v1` | `{"<regionId or all>|<tries>" or "t:<regionId or all>": [{h, n, miss, ms, d}…]}`, top 5 per key, best first. `t:` keys are Kirjoita (`miss` is always 0). |
+| `kuntavisa-stats-v1` | Napauta: `{kuntaId: [seen, firstTry, laterTry, failed]}` over all rounds, practice included. |
+| `kuntavisa-tstats-v1` | Kirjoita: `{kuntaId: [rounds, found]}`, updated for every municipality of a round when it ends. |
+| `kuntavisa-settings-v1` | `{fs, mfs, theme, borders, tries, anim, shade, play}`. `applySettings()` turns it into CSS variables on `<html>`: `--fs` for the game (header and toast sizes are in `rem`) and `--mfs` for the menu cards (`.card` sets an absolute base size and its contents are in `em`). It also sets `data-theme` and the `calm` class. |
 
 ### Labels (review view)
 - Labels are built on demand: municipality names after a round ("Näytä kartta nimillä"), region names in the pick phase and behind the menu.

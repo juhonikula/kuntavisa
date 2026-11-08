@@ -95,7 +95,6 @@
     font-size: calc(16px * var(--mfs)); }
   .pair { display: flex; gap: 8px; }
   .pair button.main { flex: 1; text-align: center; }
-  #hsTries { margin-top: 14px; }
   .card h1 { margin: 0 0 6px; font-size: 1.5em; padding-right: 32px; }
   .card p { margin: 6px 0; color: var(--muted); }
   .big { font-size: 2.5em; font-weight: 800; color: var(--fg); margin: 8px 0 0; font-variant-numeric: tabular-nums; }
@@ -126,6 +125,17 @@
   .hs .v { color: var(--muted); font-variant-numeric: tabular-nums; }
   .hs b.v { color: var(--fg); }
   .hs ol { margin: 0 0 8px; padding-left: 24px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  /* [hidden] must win over the display: flex of .row / .seg */
+  [hidden] { display: none !important; }
+  /* text mode: name input in the header (user-select: text, or iOS refuses typing) */
+  .type { flex: 1; min-width: 0; height: 2.125rem; padding: 0 10px; font: inherit; font-size: 1.25rem;
+    border: 2px solid var(--land); border-radius: 8px; background: var(--card); color: var(--fg);
+    -webkit-user-select: text; user-select: text; }
+  .type:focus { outline: none; border-color: var(--accent); }
+  .icon.arm { background: var(--bad); color: #fff; }
+  #playType { margin: 10px 0 4px; }
+  #hsType { margin-top: 14px; }
+  #hsTries { margin-top: 6px; }
   /* CC BY 4.0 source attribution in the start menu */
   .card p.credit { margin-top: 14px; font-size: .6875em; line-height: 1.35; }
   .credit a { color: inherit; }
@@ -145,6 +155,11 @@
   <div class="bar"><i id="bar"></i></div>
   <div class="prompt" id="prompt">&nbsp;</div>
   <div class="target" id="target">&nbsp;</div>
+  <div class="row" id="typeRow" hidden>
+    <input class="type" id="typeIn" type="text" autocomplete="off" autocorrect="off" autocapitalize="none"
+           spellcheck="false" enterkeyhint="done" placeholder="Kirjoita kunnan nimi">
+    <button class="icon" id="giveUp">Luovuta</button>
+  </div>
 </header>
 <main id="main">
   <svg id="map">
@@ -159,10 +174,14 @@
   <div class="card">
     <button class="x" id="closeMenu" title="Sulje" hidden>✕</button>
     <h1>Kuntavisa</h1>
-    <p>Napauta kartalta kysyttyä kuntaa. Kolme yritystä per kunta: vihreä = ensimmäisellä,
+    <!-- Play type for both modes below; texts in [data-type] blocks switch with it -->
+    <div class="seg" id="playType"><button data-v="tap">Napauta</button><button data-v="text">Kirjoita</button></div>
+    <p data-type="tap">Napauta kartalta kysyttyä kuntaa. Kolme yritystä per kunta: vihreä = ensimmäisellä,
       keltainen = 2. tai 3. yrityksellä, punainen = ei löytynyt.</p>
-    <button class="main" id="modeMk">Maakunta<small>Valitse maakunta kartalta ja tunnista sen kunnat</small></button>
-    <button class="main" id="modeAll">Koko Suomi<small>Kaikki 308 kuntaa satunnaisessa järjestyksessä</small></button>
+    <p data-type="text">Kirjoita kuntien nimiä missä järjestyksessä tahansa. Oikea nimi hyväksytään heti,
+      kirjainkoolla ja ä/ö-pisteillä ei ole väliä.</p>
+    <button class="main" id="modeMk">Maakunta<small data-type="tap">Valitse maakunta kartalta ja tunnista sen kunnat</small><small data-type="text">Valitse maakunta kartalta ja nimeä sen kunnat</small></button>
+    <button class="main" id="modeAll">Koko Suomi<small data-type="tap">Kaikki 308 kuntaa satunnaisessa järjestyksessä</small><small data-type="text">Nimeä kaikki 308 kuntaa</small></button>
     <button class="main sec" id="resumeAll" hidden></button>
     <div class="pair">
       <button class="main sec" id="openScores">Ennätykset</button>
@@ -195,6 +214,7 @@
     <button class="x" data-back title="Sulje">✕</button>
     <h1>Ennätykset</h1>
     <button class="main" id="openStats">Tilastokartta<small>Näe kartalta, missä olet paras</small></button>
+    <div class="seg" id="hsType"><button data-v="tap">Napauta</button><button data-v="text">Kirjoita</button></div>
     <div class="seg" id="hsTries"><button data-v="3">3 yritystä</button><button data-v="1">1 yritys</button></div>
     <div class="hs" id="hsList"></div>
   </div>
@@ -211,7 +231,9 @@
       <div class="seg" data-key="mfs"><button data-v="s">Pieni</button><button data-v="m">Normaali</button><button data-v="l">Suuri</button></div></div>
     <div class="set"><span>Teema</span>
       <div class="seg" data-key="theme"><button data-v="auto">Auto</button><button data-v="light">Vaalea</button><button data-v="dark">Tumma</button></div></div>
-    <div class="set"><span>Yrityksiä per kunta (seuraavasta pelistä alkaen)</span>
+    <div class="set"><span>Maakuntarajat (valintakartalla aina näkyvissä)</span>
+      <div class="seg" data-key="borders"><button data-v="on">Päällä</button><button data-v="off">Pois</button></div></div>
+    <div class="set"><span>Yrityksiä per kunta napautustilassa (seuraavasta pelistä alkaen)</span>
       <div class="seg" data-key="tries"><button data-v="3">3</button><button data-v="1">1</button></div></div>
     <div class="set"><span>Animaatiot</span>
       <div class="seg" data-key="anim"><button data-v="on">Normaalit</button><button data-v="off">Vähennetyt</button></div></div>
@@ -228,6 +250,8 @@ const SAVE_KEY = "kuntavisa-koko-v1";
 const SCORES_KEY = "kuntavisa-scores-v1";      // {"<mk id|all>|<tries>": [best..5th result]}
 const STATS_KEY = "kuntavisa-stats-v1";        // {kuntaId: [seen, firstTry, laterTry, failed]}
 const SETTINGS_KEY = "kuntavisa-settings-v1";
+const TEXT_SAVE_KEY = "kuntavisa-koko-teksti-v1";  // running Koko Suomi text game
+const TSTATS_KEY = "kuntavisa-tstats-v1";      // text mode: {kuntaId: [rounds, found]}
 const NS = "http://www.w3.org/2000/svg";
 const $ = id => document.getElementById(id);
 const svg = $("map"), gK = $("gK"), gM = $("gM"), gL = $("gL");
@@ -239,9 +263,12 @@ function load(key, def) {
 function store(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (_) {} }
 
 const FS = { s: 0.875, m: 1, l: 1.2 };        // text size setting -> rem scale
-const settings = { fs: "m", mfs: "m", theme: "auto", tries: "3", anim: "on", shade: "on", ...load(SETTINGS_KEY, {}) };
+// play = "tap" | "text": chosen with the switch at the top of the menu, remembered like the rest.
+const settings = { fs: "m", mfs: "m", theme: "auto", tries: "3", anim: "on", shade: "on", borders: "on",
+                   play: "tap", ...load(SETTINGS_KEY, {}) };
 const scores = load(SCORES_KEY, {});
 const stats = load(STATS_KEY, {});
+const tstats = load(TSTATS_KEY, {});
 
 // ---------- map construction ----------
 const K = {};                       // kunta id -> data (+ .el)
@@ -257,6 +284,13 @@ for (const k of DATA.kunnat) {
   K[k.id] = { ...k, el: p };
   MK[k.m].kunnat.push(k.id);
 }
+// Text mode matching: lower case, diacritics stripped (ä -> a, ö -> o, å -> a), spaces and
+// hyphens removed. No two 2025 names collide under this. PREFIX holds the normalised names
+// that start another name (Eura/Eurajoki, Ii/Iitti, Kemi/Keminmaa, ...).
+const norm = s => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[\s-]/g, "");
+const BY_NAME = {};
+for (const id in K) BY_NAME[norm(K[id].n)] = id;
+const PREFIX = new Set(Object.keys(BY_NAME).filter(a => Object.keys(BY_NAME).some(b => b !== a && b.startsWith(a))));
 for (const m of DATA.maakunnat) {
   const p = document.createElementNS(NS, "path");
   p.setAttribute("d", m.d);
@@ -366,6 +400,8 @@ function endPtr(e) {
       const id = tapTarget(e.clientX, e.clientY);
       if (id) onTap(id);
     }
+    // Text mode: touching the map blurs the input (and closes a phone keyboard); take focus back.
+    if (isText() && !game.over && $("start").hidden) $("typeIn").focus({ preventScroll: true });
   }
 }
 // Kunta path under a screen point. Dimmed paths have pointer-events: none, so they never match.
@@ -452,14 +488,15 @@ function startClock() {
 function stopClock() { if (game && game.t0) { game.elapsed = elapsed(); game.t0 = 0; } clearInterval(tick); }
 
 // ---------- scores and per-kunta stats ----------
-// Ranking: more first-try hits, then fewer misses, then faster.
+// Ranking: more first-try hits (text mode: names found), then fewer misses, then faster.
 const better = (a, b) => (b.h - a.h) || (a.miss - b.miss) || (a.ms - b.ms);
 const bucket = p => Math.min(4, Math.floor(p * 5));     // 0..1 -> ramp step s0..s4 (20 % bands)
-const scoreKey = (scope, tries) => `${scope}|${tries}`;
+// Tap mode lists are per tries setting; text mode has one list per scope.
+const scoreKey = (scope, tries, type) => type === "text" ? `t:${scope}` : `${scope}|${tries}`;
 
 // Insert a finished round into the top 5 of its scope; returns its rank (0 = best) or -1.
 function addScore(g) {
-  const key = scoreKey(g.mode === "mk" ? g.mk : "all", g.max);
+  const key = scoreKey(g.mode === "mk" ? g.mk : "all", g.max, g.type);
   const r = { h: g.firstTry, n: g.order.length, miss: g.totalMiss, ms: g.elapsed,
               d: new Date().toISOString().slice(0, 10) };
   const list = (scores[key] || []).concat(r).sort(better).slice(0, 5);
@@ -471,52 +508,81 @@ function record(id, r) {                         // r: 1 = first try, 2 = later 
   s[0]++; s[r]++;
   store(STATS_KEY, stats);
 }
+function recordText(g) {                         // at the end of a text round: every kunta in scope
+  for (const id of g.order) {
+    const s = tstats[id] || (tstats[id] = [0, 0]);
+    s[0]++; if (g.status[id] === "ok1") s[1]++;
+  }
+  store(TSTATS_KEY, tstats);
+}
+// Both stats tables start with [seen, good]: tap = first-try hits, text = rounds found in.
+const statsOf = type => type === "text" ? tstats : stats;
 // Ramp step per kunta for the shaded maps, or null when the map is not shaded.
 function shading() {
   const out = {};
   if (game.mode === "mk" && !game.mk && settings.shade === "on") {      // pick map: best per region
     for (const id in K) {
-      const best = (scores[scoreKey(K[id].m, settings.tries)] || [])[0];
+      const best = (scores[scoreKey(K[id].m, settings.tries, game.type)] || [])[0];
       if (best) out[id] = bucket(best.h / best.n);
     }
     return out;
   }
   if (game.mode !== "stats") return null;
+  const src = statsOf(game.type);
   if (game.view === "k") {                                              // stats map: per kunta
-    for (const id in K) { const s = stats[id]; if (s && s[0]) out[id] = bucket(s[1] / s[0]); }
+    for (const id in K) { const s = src[id]; if (s && s[0]) out[id] = bucket(s[1] / s[0]); }
   } else {                                                              // stats map: per region
     for (const m in MK) {
-      const [seen, ok] = regionStats(m);
+      const [seen, ok] = regionStats(m, src);
       if (seen) for (const id of MK[m].kunnat) out[id] = bucket(ok / seen);
     }
   }
   return out;
 }
-function regionStats(m) {                        // [seen, firstTry] summed over a region's kunnat
+function regionStats(m, src) {                   // [seen, good] summed over a region's kunnat
   let seen = 0, ok = 0;
-  for (const id of MK[m].kunnat) if (stats[id]) { seen += stats[id][0]; ok += stats[id][1]; }
+  for (const id of MK[m].kunnat) if (src[id]) { seen += src[id][0]; ok += src[id][1]; }
   return [seen, ok];
 }
 const LEGEND = "<span class='legend'>0 %<i class='s0'></i><i class='s1'></i><i class='s2'></i>" +
   "<i class='s3'></i><i class='s4'></i>100 % &nbsp;<i></i> ei pelattu</span>";
 
+const isText = () => game && game.type === "text" && game.order;
+// Is a round in progress (clock should run, input should be open)?
+const running = () => !!(game && game.order && (game.type === "text" ? !game.over : game.idx < game.order.length));
+const foundIds = () => game.order.filter(id => game.status[id] === "ok1");
+
 function paint() {                               // apply per-kunta classes from game state
   const sh = shading();
+  // Text rounds dim everything outside their set (region or practice set); tap rounds dim other regions.
+  const scope = isText() && (game.mk || game.practice) ? new Set(game.order) : null;
   for (const id in K) {
     let c = "k";
-    if (game.mode === "mk" && game.mk && K[id].m !== game.mk) c += " out";
+    if (scope ? !scope.has(id) : game.mode === "mk" && game.mk && K[id].m !== game.mk) c += " out";
     if (game.status[id]) c += " done " + game.status[id];
     if (sh && sh[id] !== undefined) c += " s" + sh[id];
     K[id].el.setAttribute("class", c);
   }
+  // Region borders setting; the region pick map always shows them.
+  gM.style.display = settings.borders === "off" && !(game.mode === "mk" && !game.mk) ? "none" : "";
 }
 
 function hud() {
+  const typing = isText() && !game.over;
+  $("typeRow").hidden = !typing; $("target").hidden = typing;
   if (!game || !game.order) {
     $("progress").textContent = ""; $("score").textContent = ""; $("timer").textContent = "";
     $("bar").style.width = "0"; return;
   }
   const n = game.order.length;
+  if (isText()) {
+    $("progress").textContent = `${game.firstTry} / ${n}`;
+    $("score").textContent = "";
+    $("timer").textContent = fmt(elapsed());
+    $("bar").style.width = `${(game.firstTry / n) * 100}%`;
+    $("prompt").textContent = (game.practice ? "Harjoitus · " : "") + "Kirjoita kuntien nimiä";
+    return;
+  }
   $("progress").textContent = `${Math.min(game.idx + 1, n)} / ${n}`;
   $("score").textContent = `Oikein ${game.firstTry}`;
   $("timer").textContent = fmt(elapsed());
@@ -530,21 +596,25 @@ function hud() {
 }
 
 // ids = practice set (replay of earlier misses); practice rounds don't save or score.
-function newRound(mode, mk, ids) {
+// type = "tap" | "text". Text rounds reuse the same fields: order = the set to name (unshuffled),
+// firstTry = names found, over = finished or given up; idx/tries are unused.
+function newRound(mode, mk, ids, type = settings.play) {
   stopClock();
-  const max = Number(settings.tries);
-  game = { mode, mk, practice: !!ids, order: shuffle((ids || (mk ? MK[mk].kunnat : Object.keys(K))).slice()),
+  const max = type === "text" ? 1 : Number(settings.tries);
+  const set = (ids || (mk ? MK[mk].kunnat : Object.keys(K))).slice();
+  game = { mode, mk, type, practice: !!ids, order: type === "text" ? set : shuffle(set),
            idx: 0, max, tries: max, firstTry: 0, totalMiss: 0, failed: [], failedIds: [], status: {},
-           elapsed: 0, t0: 0 };
-  setLabels(null);
+           elapsed: 0, t0: 0, over: false };
+  setLabels(type === "text" ? "k" : null, []);
   paint(); hud(); startClock(); save();
+  if (type === "text") { $("typeIn").value = ""; $("typeIn").focus(); }
   animateTo(fitView(), 600);
 }
 
 // Maakunta mode, phase 1: pick a region on the map.
-function pickPhase() {
+function pickPhase(type = settings.play) {
   stopClock();
-  game = { mode: "mk", mk: null, status: {}, order: null };
+  game = { mode: "mk", mk: null, type, status: {}, order: null };
   paint(); hud();
   $("prompt").innerHTML = settings.shade === "on" ? "Paras tulos: " + LEGEND : "Maakunta-tila";
   $("target").textContent = "Valitse maakunta";
@@ -552,17 +622,21 @@ function pickPhase() {
   animateTo(fitView(), 500);
 }
 
-// Stats map (reached from the high score card): colour by first-try share, per kunta or region.
-function statsMap(view, keepView) {
+// Stats map (reached from the high score card): colour by first-try share (tap) or found share
+// (text), per kunta or region. Header buttons switch the type and the view.
+function statsMap(type, view, keepView) {
   stopClock();
-  game = { mode: "stats", view, status: {}, order: null };
+  game = { mode: "stats", type, view, status: {}, order: null };
   paint(); hud();
-  $("prompt").innerHTML = "Ensimmäisellä oikein: " + LEGEND;
+  $("prompt").innerHTML = (type === "text" ? "Löydetty: " : "Ensimmäisellä oikein: ") + LEGEND;
   $("target").innerHTML = "";
-  for (const [v, txt] of [["k", "Kunnat"], ["m", "Maakunnat"]]) {
+  // [type, view, label, active]: the first two switch the type, the last two the view.
+  for (const [t, v, txt, on] of [["tap", view, "Napauta", type === "tap"], ["text", view, "Kirjoita", type === "text"],
+                                 [type, "k", "Kunnat", view === "k"], [type, "m", "Maakunnat", view === "m"]]) {
     const b = document.createElement("button");
-    b.className = "icon" + (v === view ? " on" : ""); b.textContent = txt;
-    b.onclick = () => statsMap(v, true);
+    b.className = "icon" + (on ? " on" : "");
+    b.textContent = txt;
+    b.onclick = () => statsMap(t, v, true);
     $("target").appendChild(b);
   }
   setLabels(view === "m" ? "mk" : "k", Object.keys(K));
@@ -570,16 +644,16 @@ function statsMap(view, keepView) {
 }
 
 // ---------- persistence (Koko Suomi only; best effort) ----------
+const saveKey = type => type === "text" ? TEXT_SAVE_KEY : SAVE_KEY;   // old saves have no type = tap
 function save() {
-  if (!game || game.mode !== "all" || game.practice) return;
+  if (!game || game.mode !== "all" || game.practice || !game.order) return;
   try {
-    const s = { ...game, elapsed: elapsed(), t0: 0 };
-    if (s.idx >= s.order.length) localStorage.removeItem(SAVE_KEY);
-    else localStorage.setItem(SAVE_KEY, JSON.stringify(s));
+    if (!running()) localStorage.removeItem(saveKey(game.type));
+    else localStorage.setItem(saveKey(game.type), JSON.stringify({ ...game, elapsed: elapsed(), t0: 0 }));
   } catch (_) {}
 }
-function loadSaved() {
-  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); return s && s.order ? s : null; }
+function loadSaved(type) {
+  try { const s = JSON.parse(localStorage.getItem(saveKey(type))); return s && s.order ? s : null; }
   catch (_) { return null; }
 }
 
@@ -594,7 +668,8 @@ function toast(msg) {
 function onTap(id) {
   if (!game) return;
   if (game.mode === "stats") { statsToast(id); return; }
-  if (game.mode === "mk" && !game.mk) { newRound("mk", K[id].m); return; }   // region chosen
+  if (game.mode === "mk" && !game.mk) { newRound("mk", K[id].m, null, game.type); return; }   // region chosen
+  if (isText()) { if (game.status[id]) toast(K[id].n); return; }   // text mode: taps only name found ones
   if (game.locked) return;
   if (game.idx >= game.order.length) { toast(K[id].n); return; }
   if (game.status[id]) { toast(K[id].n); return; }                          // already answered
@@ -627,15 +702,52 @@ function onTap(id) {
 }
 
 function statsToast(id) {
+  const text = game.type === "text", src = statsOf(game.type);
   if (game.view === "m") {
-    const m = K[id].m, [seen, ok] = regionStats(m);
-    toast(seen ? `${MK[m].n}: ${Math.round(ok / seen * 100)} % ensimmäisellä (${seen} vastausta)`
+    const m = K[id].m, [seen, ok] = regionStats(m, src);
+    toast(seen ? `${MK[m].n}: ${Math.round(ok / seen * 100)} % ${text ? "löydetty" : "ensimmäisellä"} ` +
+                 `(${seen} ${text ? "kertaa" : "vastausta"})`
                : `${MK[m].n}: ei pelattu`);
   } else {
-    const s = stats[id];
-    toast(s && s[0] ? `${K[id].n}: ${s[1]}/${s[0]} ensimmäisellä` : `${K[id].n}: ei pelattu`);
+    const s = src[id];
+    toast(s && s[0] ? `${K[id].n}: ${s[1]}/${s[0]} ${text ? "löydetty" : "ensimmäisellä"}` : `${K[id].n}: ei pelattu`);
   }
 }
+
+// ---------- text mode input ----------
+// Every keystroke: an unfound name of this round is accepted at once (a shorter name wins over a
+// longer one it starts, e.g. Eura before Eurajoki). A name that is already found or outside the
+// round only gets a notice, and only when it can't be the start of a longer name.
+$("typeIn").addEventListener("input", () => {
+  if (!isText() || game.over) return;
+  const q = norm($("typeIn").value), id = BY_NAME[q];
+  if (!id) return;
+  if (game.order.includes(id) && !game.status[id]) {
+    game.status[id] = "ok1"; game.firstTry++;
+    $("typeIn").value = "";
+    toast("✓ " + K[id].n);
+    paint(); setLabels("k", foundIds()); hud(); save();
+    if (game.firstTry === game.order.length) { game.over = true; finish(); }
+  } else if (!PREFIX.has(q)) {
+    $("typeIn").value = "";
+    toast(game.status[id] ? `${K[id].n} on jo löydetty` : `${K[id].n} ei kuulu tähän peliin`);
+  }
+});
+// Luovuta needs a second tap within 3 s (no confirm() dialogs); the rest turn red.
+$("giveUp").onclick = () => {
+  const b = $("giveUp");
+  if (!b.classList.contains("arm")) {
+    b.classList.add("arm"); b.textContent = "Varmasti?";
+    setTimeout(() => { b.classList.remove("arm"); b.textContent = "Luovuta"; }, 3000);
+    return;
+  }
+  b.classList.remove("arm"); b.textContent = "Luovuta";
+  for (const id of game.order) if (!game.status[id]) {
+    game.status[id] = "fail"; game.failed.push(K[id].n); game.failedIds.push(id);
+  }
+  game.over = true;
+  paint(); setLabels("k", game.order); finish();
+};
 
 function revealInView(id) {
   const b = K[id].b, px = elW / vb.w;
@@ -655,6 +767,8 @@ function advance() {
 
 function finish() {
   stopClock(); save();
+  const text = isText();
+  if (text) { recordText(game); $("typeIn").blur(); hud(); }
   const n = game.order.length, name = game.mode === "mk" ? MK[game.mk].n : "Koko Suomi";
   $("bar").style.width = "100%";
   $("prompt").textContent = name;
@@ -667,7 +781,8 @@ function finish() {
   $("practice").hidden = !miss.length;
   $("practice").textContent = `Harjoittele virheet (${miss.length})`;
   $("endScore").textContent = `${game.firstTry} / ${n}`;
-  $("endDetail").textContent = `ensimmäisellä yrityksellä · aika ${fmt(game.elapsed)} · virheitä ${game.totalMiss}`;
+  $("endDetail").textContent = text ? `nimeä löydetty · aika ${fmt(game.elapsed)}`
+    : `ensimmäisellä yrityksellä · aika ${fmt(game.elapsed)} · virheitä ${game.totalMiss}`;
   $("missWrap").innerHTML = game.failed.length
     ? `<p>Jäi löytämättä (${game.failed.length}):</p><ul>${game.failed.map(f => `<li>${f}</li>`).join("")}</ul>`
     : `<p>Kaikki löytyivät!</p>`;
@@ -682,19 +797,29 @@ let menuReturn = null;
 function showMenu() {
   menuReturn = game && game.mode !== "menu" ? { end: !$("end").hidden } : null;
   $("end").hidden = true;
-  stopClock(); save();
-  const s = loadSaved();
-  const r = $("resumeAll");
-  r.hidden = !s;
-  if (s) r.innerHTML = `Jatka Koko Suomi -peliä<small>${s.idx} / ${s.order.length} tehty · ${fmt(s.elapsed)}</small>`;
+  stopClock(); save(); $("typeIn").blur();
+  renderMenu();
   $("closeMenu").hidden = !menuReturn;
   $("start").hidden = false;
 }
+// Menu texts and the resume button follow the Napauta / Kirjoita switch.
+function renderMenu() {
+  const type = settings.play;
+  for (const b of $("playType").children) b.classList.toggle("on", b.dataset.v === type);
+  for (const el of $("start").querySelectorAll("[data-type]")) el.hidden = el.dataset.type !== type;
+  const s = loadSaved(type), r = $("resumeAll");
+  r.hidden = !s;
+  if (s) r.innerHTML = `Jatka Koko Suomi -peliä<small>${type === "text" ? s.firstTry : s.idx} / ` +
+                       `${s.order.length} ${type === "text" ? "löydetty" : "tehty"} · ${fmt(s.elapsed)}</small>`;
+}
+for (const b of $("playType").children) b.onclick = () => {
+  settings.play = b.dataset.v; store(SETTINGS_KEY, settings); renderMenu();
+};
 function closeMenu() {
   if (!menuReturn) return;
   $("start").hidden = true;
   if (menuReturn.end) $("end").hidden = false;
-  else if (game.order && game.idx < game.order.length) startClock();   // resume a running round
+  else if (running()) { startClock(); if (isText()) $("typeIn").focus(); }   // resume a running round
 }
 // Ignored during the 1.7 s miss reveal: its timer would advance the game behind the menu.
 $("menuBtn").onclick = () => { if (!game.locked) showMenu(); };
@@ -711,29 +836,36 @@ document.addEventListener("keydown", e => {        // Esc = the visible card's �
   if (x) x.click();
 });
 
-// High scores: Koko Suomi first, then regions alphabetically; tries mode chosen in the card.
-let hsTries = settings.tries;
+// High scores: Koko Suomi first, then regions alphabetically; play type (and for tap mode the
+// tries setting) chosen in the card.
+let hsType = settings.play, hsTries = settings.tries;
 function fmtDate(iso) { const [y, m, d] = iso.split("-"); return `${+d}.${+m}.${y}`; }
 function renderScores() {
+  const text = hsType === "text";
+  for (const b of $("hsType").children) b.classList.toggle("on", b.dataset.v === hsType);
   for (const b of $("hsTries").children) b.classList.toggle("on", b.dataset.v === hsTries);
+  $("hsTries").hidden = text;
   const scopes = [["all", "Koko Suomi"],
     ...DATA.maakunnat.map(m => [m.id, m.n]).sort((a, b) => a[1].localeCompare(b[1], "fi"))];
   $("hsList").innerHTML = scopes.map(([id, n]) => {
-    const list = scores[scoreKey(id, hsTries)] || [];
+    const list = scores[scoreKey(id, hsTries, hsType)] || [];
     if (!list.length) return `<div class="nr"><span class="nm">${n}</span><span class="v">–</span></div>`;
     const b = list[0];
     return `<details><summary><span class="nm">${n}</span><b class="v">${b.h}/${b.n}</b>` +
       `<span class="v">${fmt(b.ms)}</span></summary><ol>` +
-      list.map(r => `<li>${r.h}/${r.n} · ${fmt(r.ms)} · virheitä ${r.miss} · ${fmtDate(r.d)}</li>`).join("") +
+      list.map(r => `<li>${r.h}/${r.n} · ${fmt(r.ms)}${text ? "" : ` · virheitä ${r.miss}`} · ${fmtDate(r.d)}</li>`).join("") +
       `</ol></details>`;
   }).join("");
 }
-$("openScores").onclick = () => { hsTries = settings.tries; renderScores(); openCard("scores"); };
+$("openScores").onclick = () => {
+  hsType = settings.play; hsTries = settings.tries; renderScores(); openCard("scores");
+};
+for (const b of $("hsType").children) b.onclick = () => { hsType = b.dataset.v; renderScores(); };
 for (const b of $("hsTries").children) b.onclick = () => { hsTries = b.dataset.v; renderScores(); };
 $("openStats").onclick = () => {
   $("scores").hidden = true;
   menuReturn = null; $("end").hidden = true;   // the previous game is left behind (Koko Suomi stays resumable)
-  statsMap("k");
+  statsMap(hsType, "k");
 };
 
 // Settings: apply to the page; called at startup and after every change.
@@ -751,29 +883,35 @@ for (const seg of document.querySelectorAll("#settings .seg"))
   for (const b of seg.children) b.onclick = () => {
     settings[seg.dataset.key] = b.dataset.v;
     store(SETTINGS_KEY, settings); applySettings();
-    if (game.mode === "mk" && !game.mk) pickPhase();      // shading/tries change the pick map
+    if (game.mode === "mk" && !game.mk) pickPhase(game.type);   // shading/tries change the pick map
+    else paint();                                                // region borders
   };
 $("openSettings").onclick = () => openCard("settings");
 $("modeMk").onclick = () => { $("start").hidden = true; pickPhase(); };
 $("modeAll").onclick = () => {
   $("start").hidden = true;
-  try { localStorage.removeItem(SAVE_KEY); } catch (_) {}
+  try { localStorage.removeItem(saveKey(settings.play)); } catch (_) {}
   newRound("all", null);
 };
 $("resumeAll").onclick = () => {
-  const s = loadSaved(); if (!s) return;
+  const s = loadSaved(settings.play); if (!s) return;
   $("start").hidden = true;
   game = s; game.locked = false;
   game.max = game.max || 3;                       // saves from before the tries setting
   game.tries = game.tries || game.max;
-  setLabels(null); paint(); startClock(); hud(); animateTo(fitView(), 500);
+  game.type = game.type || "tap";                 // saves from before text mode
+  if (isText()) setLabels("k", foundIds()); else setLabels(null);
+  paint(); startClock(); hud(); animateTo(fitView(), 500);
+  if (isText()) $("typeIn").focus();
 };
 $("again").onclick = () => {
   $("end").hidden = true;
-  newRound(game.mode, game.mk, game.practice ? game.order : null);   // a practice round replays its set
+  newRound(game.mode, game.mk, game.practice ? game.order : null, game.type);   // a practice round replays its set
 };
-$("practice").onclick = () => { $("end").hidden = true; newRound(game.mode, game.mk, game.failedIds); };
-$("otherMk").onclick = () => { $("end").hidden = true; pickPhase(); };
+$("practice").onclick = () => {
+  $("end").hidden = true; newRound(game.mode, game.mk, game.failedIds, game.type);
+};
+$("otherMk").onclick = () => { $("end").hidden = true; pickPhase(game.type); };
 $("toMenu").onclick = showMenu;
 $("viewMap").onclick = () => {
   $("end").hidden = true;
