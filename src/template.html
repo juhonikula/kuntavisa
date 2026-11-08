@@ -5,29 +5,46 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Kuntavisa</title>
 <style>
+  /* --dim/--dimS: land and stroke pre-blended 20 % over the background. Used instead of
+     opacity on dimmed paths, because per-element opacity costs an offscreen pass per path
+     on every redraw. --s0..--s4: one-hue ordinal ramp (low -> high) for the score maps. */
   :root {
     --bg: #f4f6f8; --fg: #16202a; --muted: #5d6b78; --land: #dfe6ec; --stroke: #9aa9b6; --mk: #2b3a47;
     --hover: #c9d6e1; --ok: #2e9e5b; --ok2: #d6a21e; --bad: #d64545; --accent: #1f5fa8; --card: #fff;
+    --dim: #f0f3f6; --dimS: #e2e7eb;
+    --s0: #6da7ec; --s1: #4a90e2; --s2: #2a78d6; --s3: #1c5cab; --s4: #0d366b;
+    --fs: 1;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #11161b; --fg: #e8edf2; --muted: #93a1ae; --land: #26313b; --stroke: #46545f; --mk: #b9c6d2;
-            --hover: #33424f; --card: #1a2229; --accent: #6aa6ec; }
+    :root:not([data-theme="light"]) { --bg: #11161b; --fg: #e8edf2; --muted: #93a1ae; --land: #26313b;
+      --stroke: #46545f; --mk: #b9c6d2; --hover: #33424f; --card: #1a2229; --accent: #6aa6ec;
+      --dim: #151b21; --dimS: #1c2229;
+      --s0: #184f95; --s1: #256abf; --s2: #3987e5; --s3: #86b6ef; --s4: #cde2fb; }
   }
+  :root[data-theme="dark"] { --bg: #11161b; --fg: #e8edf2; --muted: #93a1ae; --land: #26313b;
+    --stroke: #46545f; --mk: #b9c6d2; --hover: #33424f; --card: #1a2229; --accent: #6aa6ec;
+    --dim: #151b21; --dimS: #1c2229;
+    --s0: #184f95; --s1: #256abf; --s2: #3987e5; --s3: #86b6ef; --s4: #cde2fb; }
   * { box-sizing: border-box; }
+  html { font-size: calc(16px * var(--fs)); }      /* text size setting: everything below is in rem */
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); overflow: hidden;
-    font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font: 1rem/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
   body { display: flex; flex-direction: column; }
 
   header { padding: 8px 12px 6px; display: flex; flex-direction: column; gap: 5px; }
   .row { display: flex; align-items: center; gap: 8px; }
-  .stats { flex: 1; display: flex; justify-content: space-between; font-size: 13px; color: var(--muted);
+  .stats { flex: 1; display: flex; justify-content: space-between; font-size: .8125rem; color: var(--muted);
     font-variant-numeric: tabular-nums; }
-  .icon { border: 0; background: var(--land); color: var(--fg); border-radius: 8px; height: 30px;
-    min-width: 34px; padding: 0 9px; font: inherit; font-size: 14px; cursor: pointer; }
-  .prompt { font-size: 13px; color: var(--muted); }
-  .target { font-size: 24px; font-weight: 700; letter-spacing: -0.01em; min-height: 34px;
+  .icon { border: 0; background: var(--land); color: var(--fg); border-radius: 8px; height: 1.875rem;
+    min-width: 2.125rem; padding: 0 9px; font: inherit; font-size: .875rem; cursor: pointer; }
+  .icon.on { background: var(--accent); color: #fff; }
+  .prompt { font-size: .8125rem; color: var(--muted); }
+  .target { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.01em; min-height: 2.125rem;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .target .icon { margin-right: 4px; vertical-align: middle; }
+  .legend i { display: inline-block; width: .85em; height: .85em; border-radius: 2px; background: var(--land);
+    vertical-align: -.1em; margin: 0 1px; }
   .bar { height: 4px; background: var(--land); border-radius: 2px; overflow: hidden; }
   .bar > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s; }
   .tries { display: inline-flex; gap: 4px; margin-left: 8px; vertical-align: middle; }
@@ -37,14 +54,22 @@
   main { flex: 1; min-height: 0; position: relative; }
   svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
   path.k { fill: var(--land); stroke: var(--stroke); stroke-width: 0.6; vector-effect: non-scaling-stroke;
-    stroke-linejoin: round; transition: fill .15s, opacity .3s; }
-  path.k.out { opacity: .2; pointer-events: none; }
+    stroke-linejoin: round; transition: fill .15s; }
+  path.k.out { fill: var(--dim); stroke: var(--dimS); pointer-events: none; }
   path.k.ok1 { fill: var(--ok); }
   path.k.ok2 { fill: var(--ok2); }
   path.k.fail { fill: var(--bad); }
   path.k.pick { fill: var(--hover); }
+  path.k.s0, .legend i.s0 { fill: var(--s0); background: var(--s0); }
+  path.k.s1, .legend i.s1 { fill: var(--s1); background: var(--s1); }
+  path.k.s2, .legend i.s2 { fill: var(--s2); background: var(--s2); }
+  path.k.s3, .legend i.s3 { fill: var(--s3); background: var(--s3); }
+  path.k.s4, .legend i.s4 { fill: var(--s4); background: var(--s4); }
   path.k.flash { animation: flash .6s; }
   path.k.reveal { animation: reveal .8s 2; }
+  .calm path.k { transition: none; }
+  .calm path.k.reveal { animation: reveal .6s 1; }
+  .calm .bar > i { transition: none; }
   @keyframes flash { 0%,100% { fill: var(--land); } 30% { fill: var(--bad); } }
   @keyframes reveal { 0%,100% { fill: var(--bad); } 50% { fill: var(--land); } }
   path.mk { fill: none; stroke: var(--mk); stroke-width: 1.6; vector-effect: non-scaling-stroke;
@@ -54,29 +79,49 @@
   text.lbl.mkl { fill: var(--fg); stroke: var(--bg); font-weight: 700; }
 
   .toast { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); background: var(--fg);
-    color: var(--bg); padding: 6px 12px; border-radius: 8px; font-size: 14px; opacity: 0;
+    color: var(--bg); padding: 6px 12px; border-radius: 8px; font-size: .875rem; opacity: 0;
     transition: opacity .2s; pointer-events: none; white-space: nowrap; z-index: 2; }
   .toast.show { opacity: .92; }
-  .hint { position: absolute; bottom: 8px; left: 0; right: 0; text-align: center; font-size: 12px;
+  .hint { position: absolute; bottom: 8px; left: 0; right: 0; text-align: center; font-size: .75rem;
     color: var(--muted); pointer-events: none; }
 
   .overlay { position: fixed; inset: 0; background: rgba(10,15,20,.55); display: flex;
     align-items: center; justify-content: center; padding: 16px; z-index: 5; }
   .overlay[hidden] { display: none; }
-  .card { background: var(--card); border-radius: 14px; padding: 22px; max-width: 380px; width: 100%;
-    max-height: 90vh; overflow: auto; box-shadow: 0 10px 40px rgba(0,0,0,.25); }
-  .card h1 { margin: 0 0 6px; font-size: 24px; }
+  .card { position: relative; background: var(--card); border-radius: 14px; padding: 22px; max-width: 380px;
+    width: 100%; max-height: 90vh; overflow: auto; box-shadow: 0 10px 40px rgba(0,0,0,.25); }
+  .card h1 { margin: 0 0 6px; font-size: 1.5rem; padding-right: 32px; }
   .card p { margin: 6px 0; color: var(--muted); }
-  .big { font-size: 40px; font-weight: 800; color: var(--fg); margin: 8px 0 0; font-variant-numeric: tabular-nums; }
-  .card ul { padding-left: 18px; margin: 6px 0; color: var(--fg); columns: 2; column-gap: 16px; font-size: 14px; }
+  .big { font-size: 2.5rem; font-weight: 800; color: var(--fg); margin: 8px 0 0; font-variant-numeric: tabular-nums; }
+  .card ul { padding-left: 18px; margin: 6px 0; color: var(--fg); columns: 2; column-gap: 16px; font-size: .875rem; }
+  .card p.rank { color: var(--accent); font-weight: 600; }
+  button.x { position: absolute; top: 10px; right: 10px; width: 36px; height: 36px; border: 0; border-radius: 8px;
+    background: transparent; color: var(--muted); font: inherit; font-size: 1.25rem; cursor: pointer; }
   button.main { font: inherit; font-weight: 600; border: 0; border-radius: 10px; padding: 12px 18px;
     background: var(--accent); color: #fff; width: 100%; margin-top: 12px; cursor: pointer; text-align: left; }
-  button.main small { display: block; font-weight: 400; opacity: .85; font-size: 13px; }
+  button.main small { display: block; font-weight: 400; opacity: .85; font-size: .8125rem; }
   button.sec { background: var(--land); color: var(--fg); }
   button.ghost { font: inherit; border: 0; background: transparent; color: var(--muted); padding: 8px 4px;
-    margin-top: 6px; font-size: 14px; cursor: pointer; }
+    margin-top: 6px; font-size: .875rem; cursor: pointer; }
+  /* settings: one segmented control per setting */
+  .set { margin-top: 12px; }
+  .set > span { display: block; font-size: .8125rem; color: var(--muted); margin-bottom: 4px; }
+  .seg { display: flex; gap: 4px; background: var(--land); border-radius: 10px; padding: 3px; }
+  .seg button { flex: 1; font: inherit; font-size: .875rem; border: 0; background: transparent; color: var(--fg);
+    padding: 7px 4px; border-radius: 8px; cursor: pointer; }
+  .seg button.on { background: var(--card); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+  /* high score list: one row per scope, <details> expands the top 5 */
+  .hs { margin-top: 10px; font-size: .875rem; }
+  .hs details, .hs .nr { border-top: 1px solid var(--land); }
+  .hs summary, .hs .nr { display: flex; gap: 10px; padding: 7px 2px; list-style: none; }
+  .hs summary { cursor: pointer; }
+  .hs summary::-webkit-details-marker { display: none; }
+  .hs .nm { flex: 1; }
+  .hs .v { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .hs b.v { color: var(--fg); }
+  .hs ol { margin: 0 0 8px; padding-left: 24px; color: var(--muted); font-variant-numeric: tabular-nums; }
   /* CC BY 4.0 source attribution in the start menu */
-  .card p.credit { margin-top: 14px; font-size: 11px; line-height: 1.35; }
+  .card p.credit { margin-top: 14px; font-size: .6875rem; line-height: 1.35; }
   .credit a { color: inherit; }
 </style>
 </head>
@@ -106,12 +151,15 @@
 <!-- Start menu -->
 <div class="overlay" id="start">
   <div class="card">
+    <button class="x" id="closeMenu" title="Sulje" hidden>✕</button>
     <h1>Kuntavisa</h1>
     <p>Napauta kartalta kysyttyä kuntaa. Kolme yritystä per kunta: vihreä = ensimmäisellä,
       keltainen = 2. tai 3. yrityksellä, punainen = ei löytynyt.</p>
     <button class="main" id="modeMk">Maakunta<small>Valitse maakunta kartalta ja tunnista sen kunnat</small></button>
     <button class="main" id="modeAll">Koko Suomi<small>Kaikki 308 kuntaa satunnaisessa järjestyksessä</small></button>
     <button class="main sec" id="resumeAll" hidden></button>
+    <button class="ghost" id="openScores">Ennätykset</button>
+    <button class="ghost" id="openSettings">Asetukset</button>
     <p class="credit">Kunta- ja maakuntarajat: Tilastokeskus, ladattu rajapintapalvelusta 07.11.2026,
       <a href="https://creativecommons.org/licenses/by/4.0/deed.fi" target="_blank" rel="noopener">CC BY 4.0</a></p>
   </div>
@@ -123,11 +171,42 @@
     <h1 id="endTitle">Valmis!</h1>
     <div class="big" id="endScore"></div>
     <p id="endDetail"></p>
+    <p class="rank" id="endRank" hidden></p>
     <div id="missWrap"></div>
     <button class="main" id="again">Pelaa uudelleen</button>
+    <button class="main sec" id="practice" hidden></button>
     <button class="main sec" id="otherMk">Valitse toinen maakunta</button>
     <button class="ghost" id="viewMap">Näytä kartta nimillä</button>
     <button class="ghost" id="toMenu">Päävalikko</button>
+  </div>
+</div>
+
+<!-- High scores (opened from the menu; ✕ returns to it) -->
+<div class="overlay" id="scores" hidden>
+  <div class="card">
+    <button class="x" data-back title="Sulje">✕</button>
+    <h1>Ennätykset</h1>
+    <div class="seg" id="hsTries"><button data-v="3">3 yritystä</button><button data-v="1">1 yritys</button></div>
+    <div class="hs" id="hsList"></div>
+    <button class="ghost" id="openStats">Tilastokartta: missä olen paras</button>
+  </div>
+</div>
+
+<!-- Settings: each .seg has data-key = settings field, each button data-v = value -->
+<div class="overlay" id="settings" hidden>
+  <div class="card">
+    <button class="x" data-back title="Sulje">✕</button>
+    <h1>Asetukset</h1>
+    <div class="set"><span>Tekstin koko</span>
+      <div class="seg" data-key="fs"><button data-v="s">Pieni</button><button data-v="m">Normaali</button><button data-v="l">Suuri</button></div></div>
+    <div class="set"><span>Teema</span>
+      <div class="seg" data-key="theme"><button data-v="auto">Auto</button><button data-v="light">Vaalea</button><button data-v="dark">Tumma</button></div></div>
+    <div class="set"><span>Yrityksiä per kunta (seuraavasta pelistä alkaen)</span>
+      <div class="seg" data-key="tries"><button data-v="3">3</button><button data-v="1">1</button></div></div>
+    <div class="set"><span>Animaatiot</span>
+      <div class="seg" data-key="anim"><button data-v="on">Normaalit</button><button data-v="off">Vähennetyt</button></div></div>
+    <div class="set"><span>Maakuntavalinnan värit ennätysten mukaan</span>
+      <div class="seg" data-key="shade"><button data-v="on">Päällä</button><button data-v="off">Pois</button></div></div>
   </div>
 </div>
 
@@ -135,11 +214,24 @@
 // Boundaries: Statistics Finland kunnat & maakunnat 2025 (1:1 000 000), EPSG:3067,
 // simplified; 1 SVG unit = 1 km, y flipped so north is up.
 const DATA = __DATA__;
-const MAX_TRIES = 3;
 const SAVE_KEY = "kuntavisa-koko-v1";
+const SCORES_KEY = "kuntavisa-scores-v1";      // {"<mk id|all>|<tries>": [best..5th result]}
+const STATS_KEY = "kuntavisa-stats-v1";        // {kuntaId: [seen, firstTry, laterTry, failed]}
+const SETTINGS_KEY = "kuntavisa-settings-v1";
 const NS = "http://www.w3.org/2000/svg";
 const $ = id => document.getElementById(id);
 const svg = $("map"), gK = $("gK"), gM = $("gM"), gL = $("gL");
+
+// ---------- storage (best effort: localStorage can be unavailable in sandboxes) ----------
+function load(key, def) {
+  try { return JSON.parse(localStorage.getItem(key)) || def; } catch (_) { return def; }
+}
+function store(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (_) {} }
+
+const FS = { s: 0.875, m: 1, l: 1.2 };        // text size setting -> rem scale
+const settings = { fs: "m", theme: "auto", tries: "3", anim: "on", shade: "on", ...load(SETTINGS_KEY, {}) };
+const scores = load(SCORES_KEY, {});
+const stats = load(STATS_KEY, {});
 
 // ---------- map construction ----------
 const K = {};                       // kunta id -> data (+ .el)
@@ -166,14 +258,25 @@ const FULL = { x: -8, y: -8, w: DATA.w + 16, h: DATA.h + 16 };
 
 // ---------- view (viewBox) handling ----------
 // vb always has the same aspect ratio as the element, so screen<->map is a plain scale + offset.
-let vb = { ...FULL }, elW = 1, elH = 1, labelMode = null;
+let vb = { ...FULL }, elW = 1, elH = 1, elL = 0, elT = 0, labelMode = null;
 
+// The element rect is cached (refreshed by the ResizeObserver below), so gesture handlers
+// never call getBoundingClientRect().
 function measure() {
   const r = svg.getBoundingClientRect();
-  elW = r.width || 1; elH = r.height || 1;
+  elW = r.width || 1; elH = r.height || 1; elL = r.left; elT = r.top;
 }
-function applyVb() {
+// Input events can arrive several times per frame (trackpads: 120 Hz+). Updating vb is cheap,
+// but every viewBox write makes the browser redraw all paths, so writes are batched to
+// one per animation frame. sync = write now (used from code already running inside rAF).
+let vbRaf = 0;
+function applyVb(sync) {
   vb.h = vb.w * elH / elW;
+  if (sync) flushVb();
+  else if (!vbRaf) vbRaf = requestAnimationFrame(flushVb);
+}
+function flushVb() {
+  cancelAnimationFrame(vbRaf); vbRaf = 0;
   svg.setAttribute("viewBox", `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
   if (labelMode) updateLabels();
 }
@@ -195,11 +298,12 @@ function zoomAt(px, py, f) {                       // zoom by factor f around sc
 let anim = null;
 function animateTo(t, ms = 450) {
   cancelAnimationFrame(anim);
+  if (settings.anim === "off") { vb.x = t.x; vb.y = t.y; vb.w = t.w; applyVb(true); return; }
   const s = { ...vb }, t0 = performance.now();
   const step = now => {
     const u = Math.min(1, (now - t0) / ms), e = u < .5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2;
     vb.x = s.x + (t.x - s.x) * e; vb.y = s.y + (t.y - s.y) * e; vb.w = s.w + (t.w - s.w) * e;
-    applyVb();
+    applyVb(true);
     if (u < 1) anim = requestAnimationFrame(step);
   };
   anim = requestAnimationFrame(step);
@@ -221,7 +325,7 @@ svg.addEventListener("pointerdown", e => {
 });
 svg.addEventListener("pointermove", e => {
   if (!ptrs.has(e.pointerId)) return;
-  const prev = ptrs.get(e.pointerId), r = svg.getBoundingClientRect();
+  const prev = ptrs.get(e.pointerId);
   if (ptrs.size === 1) {
     if (!gesture.moved && Math.hypot(e.clientX - gesture.sx, e.clientY - gesture.sy) < 7) return;
     gesture.moved = true;
@@ -235,8 +339,8 @@ svg.addEventListener("pointermove", e => {
     const other = a === prev ? b : a;
     const d0 = Math.hypot(prev.x - other.x, prev.y - other.y);
     const d1 = Math.hypot(e.clientX - other.x, e.clientY - other.y);
-    const m0 = { x: (prev.x + other.x) / 2 - r.left, y: (prev.y + other.y) / 2 - r.top };
-    const m1 = { x: (e.clientX + other.x) / 2 - r.left, y: (e.clientY + other.y) / 2 - r.top };
+    const m0 = { x: (prev.x + other.x) / 2 - elL, y: (prev.y + other.y) / 2 - elT };
+    const m1 = { x: (e.clientX + other.x) / 2 - elL, y: (e.clientY + other.y) / 2 - elT };
     vb.x -= (m1.x - m0.x) / elW * vb.w; vb.y -= (m1.y - m0.y) / elH * vb.h;
     if (d0 > 0) zoomAt(m1.x, m1.y, d1 / d0); else applyVb();
     ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -249,22 +353,35 @@ function endPtr(e) {
   if (ptrs.size === 0 && gesture) {
     const g = gesture; gesture = null;
     if (!g.moved && !g.multi) {
-      const el = document.elementFromPoint(e.clientX, e.clientY);
-      if (el && el.dataset && el.dataset.id) onTap(el.dataset.id);
+      const id = tapTarget(e.clientX, e.clientY);
+      if (id) onTap(id);
     }
   }
+}
+// Kunta path under a screen point. Dimmed paths have pointer-events: none, so they never match.
+function kuntaAt(x, y) {
+  const el = document.elementFromPoint(x, y);
+  return el && el.classList && el.classList.contains("k") ? el.dataset.id : null;
+}
+// Tap tolerance: an exact hit wins; a tap on sea/background then probes 8 directions at
+// 5 px and 10 px and takes the first kunta found, i.e. the nearest within ~10 px.
+function tapTarget(x, y) {
+  let id = kuntaAt(x, y);
+  for (const r of [5, 10]) for (let a = 0; a < 8 && !id; a++)
+    id = kuntaAt(x + r * Math.cos(a * Math.PI / 4), y + r * Math.sin(a * Math.PI / 4));
+  return id;
 }
 svg.addEventListener("pointerup", endPtr);
 svg.addEventListener("pointercancel", e => { ptrs.delete(e.pointerId); if (!ptrs.size) gesture = null; });
 svg.addEventListener("wheel", e => {
   e.preventDefault();
-  const r = svg.getBoundingClientRect();
-  zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015));
+  zoomAt(e.clientX - elL, e.clientY - elT, Math.exp(-e.deltaY * 0.0015));
 }, { passive: false });
-window.addEventListener("resize", () => {
+// Window resizes and header height changes (e.g. text size) both resize the SVG; keep the centre.
+new ResizeObserver(() => {
   const cx = vb.x + vb.w / 2, cy = vb.y + vb.h / 2;
-  measure(); vb.h = vb.w * elH / elW; vb.x = cx - vb.w / 2; vb.y = cy - vb.h / 2; applyVb();
-});
+  measure(); vb.h = vb.w * elH / elW; vb.x = cx - vb.w / 2; vb.y = cy - vb.h / 2; applyVb(true);
+}).observe(svg);
 $("fitBtn").onclick = () => animateTo(fitView());
 
 // ---------- labels (review view) ----------
@@ -290,11 +407,11 @@ function buildLabels(ids, mkLabels) {
   updateLabels();
 }
 function updateLabels() {
-  const px = elW / vb.w;                       // screen px per km
-  gL.setAttribute("font-size", 12 / px);
+  const px = elW / vb.w, f = FS[settings.fs];  // screen px per km, text size scale
+  gL.setAttribute("font-size", 12 * f / px);
   for (const t of gL.children) {
     const k = t._k, wpx = (k.b[2] - k.b[0]) * px;
-    t.style.display = wpx > k.n.length * (labelMode === "mk" ? 3.2 : 6.5) ? "" : "none";
+    t.style.display = wpx > k.n.length * f * (labelMode === "mk" ? 3.2 : 6.5) ? "" : "none";
   }
 }
 function setLabels(mode, ids) {
@@ -324,11 +441,62 @@ function startClock() {
 }
 function stopClock() { if (game && game.t0) { game.elapsed = elapsed(); game.t0 = 0; } clearInterval(tick); }
 
+// ---------- scores and per-kunta stats ----------
+// Ranking: more first-try hits, then fewer misses, then faster.
+const better = (a, b) => (b.h - a.h) || (a.miss - b.miss) || (a.ms - b.ms);
+const bucket = p => Math.min(4, Math.floor(p * 5));     // 0..1 -> ramp step s0..s4 (20 % bands)
+const scoreKey = (scope, tries) => `${scope}|${tries}`;
+
+// Insert a finished round into the top 5 of its scope; returns its rank (0 = best) or -1.
+function addScore(g) {
+  const key = scoreKey(g.mode === "mk" ? g.mk : "all", g.max);
+  const r = { h: g.firstTry, n: g.order.length, miss: g.totalMiss, ms: g.elapsed,
+              d: new Date().toISOString().slice(0, 10) };
+  const list = (scores[key] || []).concat(r).sort(better).slice(0, 5);
+  scores[key] = list; store(SCORES_KEY, scores);
+  return list.indexOf(r);
+}
+function record(id, r) {                         // r: 1 = first try, 2 = later try, 3 = failed
+  const s = stats[id] || (stats[id] = [0, 0, 0, 0]);
+  s[0]++; s[r]++;
+  store(STATS_KEY, stats);
+}
+// Ramp step per kunta for the shaded maps, or null when the map is not shaded.
+function shading() {
+  const out = {};
+  if (game.mode === "mk" && !game.mk && settings.shade === "on") {      // pick map: best per region
+    for (const id in K) {
+      const best = (scores[scoreKey(K[id].m, settings.tries)] || [])[0];
+      if (best) out[id] = bucket(best.h / best.n);
+    }
+    return out;
+  }
+  if (game.mode !== "stats") return null;
+  if (game.view === "k") {                                              // stats map: per kunta
+    for (const id in K) { const s = stats[id]; if (s && s[0]) out[id] = bucket(s[1] / s[0]); }
+  } else {                                                              // stats map: per region
+    for (const m in MK) {
+      const [seen, ok] = regionStats(m);
+      if (seen) for (const id of MK[m].kunnat) out[id] = bucket(ok / seen);
+    }
+  }
+  return out;
+}
+function regionStats(m) {                        // [seen, firstTry] summed over a region's kunnat
+  let seen = 0, ok = 0;
+  for (const id of MK[m].kunnat) if (stats[id]) { seen += stats[id][0]; ok += stats[id][1]; }
+  return [seen, ok];
+}
+const LEGEND = "<span class='legend'>0 %<i class='s0'></i><i class='s1'></i><i class='s2'></i>" +
+  "<i class='s3'></i><i class='s4'></i>100 % &nbsp;<i></i> ei pelattu</span>";
+
 function paint() {                               // apply per-kunta classes from game state
+  const sh = shading();
   for (const id in K) {
     let c = "k";
     if (game.mode === "mk" && game.mk && K[id].m !== game.mk) c += " out";
     if (game.status[id]) c += " done " + game.status[id];
+    if (sh && sh[id] !== undefined) c += " s" + sh[id];
     K[id].el.setAttribute("class", c);
   }
 }
@@ -344,17 +512,20 @@ function hud() {
   $("timer").textContent = fmt(elapsed());
   $("bar").style.width = `${(game.idx / n) * 100}%`;
   if (game.idx < n) {
-    $("prompt").innerHTML = "Napauta kuntaa<span class='tries'>" +
-      Array.from({ length: MAX_TRIES }, (_, i) => `<b class="${i < MAX_TRIES - game.tries ? "used" : ""}"></b>`).join("") +
+    $("prompt").innerHTML = (game.practice ? "Harjoitus · " : "") + "Napauta kuntaa<span class='tries'>" +
+      Array.from({ length: game.max }, (_, i) => `<b class="${i < game.max - game.tries ? "used" : ""}"></b>`).join("") +
       "</span>";
     $("target").textContent = K[game.order[game.idx]].n;
   }
 }
 
-function newRound(mode, mk) {
+// ids = practice set (replay of earlier misses); practice rounds don't save or score.
+function newRound(mode, mk, ids) {
   stopClock();
-  game = { mode, mk, order: shuffle(mk ? MK[mk].kunnat.slice() : Object.keys(K)),
-           idx: 0, tries: MAX_TRIES, firstTry: 0, totalMiss: 0, failed: [], status: {}, elapsed: 0, t0: 0 };
+  const max = Number(settings.tries);
+  game = { mode, mk, practice: !!ids, order: shuffle((ids || (mk ? MK[mk].kunnat : Object.keys(K))).slice()),
+           idx: 0, max, tries: max, firstTry: 0, totalMiss: 0, failed: [], failedIds: [], status: {},
+           elapsed: 0, t0: 0 };
   setLabels(null);
   paint(); hud(); startClock(); save();
   animateTo(fitView(), 600);
@@ -365,15 +536,32 @@ function pickPhase() {
   stopClock();
   game = { mode: "mk", mk: null, status: {}, order: null };
   paint(); hud();
-  $("prompt").textContent = "Maakunta-tila";
+  $("prompt").innerHTML = settings.shade === "on" ? "Paras tulos: " + LEGEND : "Maakunta-tila";
   $("target").textContent = "Valitse maakunta";
   setLabels("mk");
   animateTo(fitView(), 500);
 }
 
+// Stats map (reached from the high score card): colour by first-try share, per kunta or region.
+function statsMap(view, keepView) {
+  stopClock();
+  game = { mode: "stats", view, status: {}, order: null };
+  paint(); hud();
+  $("prompt").innerHTML = "Ensimmäisellä oikein: " + LEGEND;
+  $("target").innerHTML = "";
+  for (const [v, txt] of [["k", "Kunnat"], ["m", "Maakunnat"]]) {
+    const b = document.createElement("button");
+    b.className = "icon" + (v === view ? " on" : ""); b.textContent = txt;
+    b.onclick = () => statsMap(v, true);
+    $("target").appendChild(b);
+  }
+  setLabels(view === "m" ? "mk" : "k", Object.keys(K));
+  if (!keepView) animateTo(fitView(), 500);
+}
+
 // ---------- persistence (Koko Suomi only; best effort) ----------
 function save() {
-  if (!game || game.mode !== "all") return;
+  if (!game || game.mode !== "all" || game.practice) return;
   try {
     const s = { ...game, elapsed: elapsed(), t0: 0 };
     if (s.idx >= s.order.length) localStorage.removeItem(SAVE_KEY);
@@ -395,14 +583,17 @@ function toast(msg) {
 
 function onTap(id) {
   if (!game) return;
+  if (game.mode === "stats") { statsToast(id); return; }
   if (game.mode === "mk" && !game.mk) { newRound("mk", K[id].m); return; }   // region chosen
   if (game.locked) return;
   if (game.idx >= game.order.length) { toast(K[id].n); return; }
   if (game.status[id]) { toast(K[id].n); return; }                          // already answered
   const tid = game.order[game.idx];
   if (id === tid) {
-    game.status[id] = game.tries === MAX_TRIES ? "ok1" : "ok2";
-    if (game.tries === MAX_TRIES) game.firstTry++;
+    const first = game.tries === game.max;
+    game.status[id] = first ? "ok1" : "ok2";
+    if (first) game.firstTry++;
+    record(id, first ? 1 : 2);
     advance(); return;
   }
   // wrong: flash, name it, consume a try
@@ -415,11 +606,25 @@ function onTap(id) {
 
   // out of tries: reveal the right one (bring it into view if needed), then continue
   game.failed.push(K[tid].n);
+  (game.failedIds = game.failedIds || []).push(tid);    // saves from before practice mode lack it
   game.status[tid] = "fail";
+  record(tid, 3);
   revealInView(tid);
   game.locked = true; hud();
   paint(); K[tid].el.classList.add("reveal");
-  setTimeout(() => { K[tid].el.classList.remove("reveal"); game.locked = false; advance(); }, 1700);
+  setTimeout(() => { K[tid].el.classList.remove("reveal"); game.locked = false; advance(); },
+             settings.anim === "off" ? 700 : 1700);
+}
+
+function statsToast(id) {
+  if (game.view === "m") {
+    const m = K[id].m, [seen, ok] = regionStats(m);
+    toast(seen ? `${MK[m].n}: ${Math.round(ok / seen * 100)} % ensimmäisellä (${seen} vastausta)`
+               : `${MK[m].n}: ei pelattu`);
+  } else {
+    const s = stats[id];
+    toast(s && s[0] ? `${K[id].n}: ${s[1]}/${s[0]} ensimmäisellä` : `${K[id].n}: ei pelattu`);
+  }
 }
 
 function revealInView(id) {
@@ -433,18 +638,24 @@ function revealInView(id) {
 }
 
 function advance() {
-  game.idx++; game.tries = MAX_TRIES;
+  game.idx++; game.tries = game.max;
   paint(); hud(); save();
   if (game.idx >= game.order.length) finish();
 }
 
 function finish() {
   stopClock(); save();
-  const n = game.order.length;
+  const n = game.order.length, name = game.mode === "mk" ? MK[game.mk].n : "Koko Suomi";
   $("bar").style.width = "100%";
-  $("prompt").textContent = game.mode === "mk" ? MK[game.mk].n : "Koko Suomi";
+  $("prompt").textContent = name;
   $("target").textContent = "Valmis";
-  $("endTitle").textContent = game.mode === "mk" ? `${MK[game.mk].n} valmis!` : "Koko Suomi valmis!";
+  $("endTitle").textContent = game.practice ? "Harjoitus valmis!" : `${name} valmis!`;
+  const rank = game.practice ? -1 : addScore(game);
+  $("endRank").hidden = rank < 0;
+  $("endRank").textContent = rank === 0 ? "Uusi ennätys!" : `${rank + 1}. paras tulos`;
+  const miss = game.failedIds || [];
+  $("practice").hidden = !miss.length;
+  $("practice").textContent = `Harjoittele virheet (${miss.length})`;
   $("endScore").textContent = `${game.firstTry} / ${n}`;
   $("endDetail").textContent = `ensimmäisellä yrityksellä · aika ${fmt(game.elapsed)} · virheitä ${game.totalMiss}`;
   $("missWrap").innerHTML = game.failed.length
@@ -455,15 +666,83 @@ function finish() {
 }
 
 // ---------- menus ----------
+// What the menu's ✕ returns to: null at startup (nothing to return to), else whether the
+// result card was open. The game state itself stays in `game` while the menu is open.
+let menuReturn = null;
 function showMenu() {
+  menuReturn = game && game.mode !== "menu" ? { end: !$("end").hidden } : null;
+  $("end").hidden = true;
   stopClock(); save();
   const s = loadSaved();
   const r = $("resumeAll");
   r.hidden = !s;
   if (s) r.innerHTML = `Jatka Koko Suomi -peliä<small>${s.idx} / ${s.order.length} tehty · ${fmt(s.elapsed)}</small>`;
+  $("closeMenu").hidden = !menuReturn;
   $("start").hidden = false;
 }
-$("menuBtn").onclick = () => { $("end").hidden = true; showMenu(); };
+function closeMenu() {
+  if (!menuReturn) return;
+  $("start").hidden = true;
+  if (menuReturn.end) $("end").hidden = false;
+  else if (game.order && game.idx < game.order.length) startClock();   // resume a running round
+}
+// Ignored during the 1.7 s miss reveal: its timer would advance the game behind the menu.
+$("menuBtn").onclick = () => { if (!game.locked) showMenu(); };
+$("closeMenu").onclick = closeMenu;
+
+// Sub-cards (high scores, settings) open from the menu; their ✕ goes back to it.
+function openCard(id) { $("start").hidden = true; $(id).hidden = false; }
+for (const b of document.querySelectorAll("button[data-back]"))
+  b.onclick = () => { b.closest(".overlay").hidden = true; $("start").hidden = false; };
+document.addEventListener("keydown", e => {        // Esc = the visible card's ✕
+  if (e.key !== "Escape") return;
+  const open = [...document.querySelectorAll(".overlay")].find(o => !o.hidden);
+  const x = open && open.querySelector("button.x:not([hidden])");
+  if (x) x.click();
+});
+
+// High scores: Koko Suomi first, then regions alphabetically; tries mode chosen in the card.
+let hsTries = settings.tries;
+function fmtDate(iso) { const [y, m, d] = iso.split("-"); return `${+d}.${+m}.${y}`; }
+function renderScores() {
+  for (const b of $("hsTries").children) b.classList.toggle("on", b.dataset.v === hsTries);
+  const scopes = [["all", "Koko Suomi"],
+    ...DATA.maakunnat.map(m => [m.id, m.n]).sort((a, b) => a[1].localeCompare(b[1], "fi"))];
+  $("hsList").innerHTML = scopes.map(([id, n]) => {
+    const list = scores[scoreKey(id, hsTries)] || [];
+    if (!list.length) return `<div class="nr"><span class="nm">${n}</span><span class="v">–</span></div>`;
+    const b = list[0];
+    return `<details><summary><span class="nm">${n}</span><b class="v">${b.h}/${b.n}</b>` +
+      `<span class="v">${fmt(b.ms)}</span></summary><ol>` +
+      list.map(r => `<li>${r.h}/${r.n} · ${fmt(r.ms)} · virheitä ${r.miss} · ${fmtDate(r.d)}</li>`).join("") +
+      `</ol></details>`;
+  }).join("");
+}
+$("openScores").onclick = () => { hsTries = settings.tries; renderScores(); openCard("scores"); };
+for (const b of $("hsTries").children) b.onclick = () => { hsTries = b.dataset.v; renderScores(); };
+$("openStats").onclick = () => {
+  $("scores").hidden = true;
+  menuReturn = null; $("end").hidden = true;   // the previous game is left behind (Koko Suomi stays resumable)
+  statsMap("k");
+};
+
+// Settings: apply to the page; called at startup and after every change.
+function applySettings() {
+  const root = document.documentElement;
+  root.style.setProperty("--fs", FS[settings.fs]);
+  if (settings.theme === "auto") delete root.dataset.theme; else root.dataset.theme = settings.theme;
+  root.classList.toggle("calm", settings.anim === "off");
+  for (const seg of document.querySelectorAll("#settings .seg"))
+    for (const b of seg.children) b.classList.toggle("on", b.dataset.v === settings[seg.dataset.key]);
+  if (labelMode) updateLabels();
+}
+for (const seg of document.querySelectorAll("#settings .seg"))
+  for (const b of seg.children) b.onclick = () => {
+    settings[seg.dataset.key] = b.dataset.v;
+    store(SETTINGS_KEY, settings); applySettings();
+    if (game.mode === "mk" && !game.mk) pickPhase();      // shading/tries change the pick map
+  };
+$("openSettings").onclick = () => openCard("settings");
 $("modeMk").onclick = () => { $("start").hidden = true; pickPhase(); };
 $("modeAll").onclick = () => {
   $("start").hidden = true;
@@ -473,12 +752,18 @@ $("modeAll").onclick = () => {
 $("resumeAll").onclick = () => {
   const s = loadSaved(); if (!s) return;
   $("start").hidden = true;
-  game = s; game.locked = false; game.tries = game.tries || MAX_TRIES;
+  game = s; game.locked = false;
+  game.max = game.max || 3;                       // saves from before the tries setting
+  game.tries = game.tries || game.max;
   setLabels(null); paint(); startClock(); hud(); animateTo(fitView(), 500);
 };
-$("again").onclick = () => { $("end").hidden = true; newRound(game.mode, game.mk); };
+$("again").onclick = () => {
+  $("end").hidden = true;
+  newRound(game.mode, game.mk, game.practice ? game.order : null);   // a practice round replays its set
+};
+$("practice").onclick = () => { $("end").hidden = true; newRound(game.mode, game.mk, game.failedIds); };
 $("otherMk").onclick = () => { $("end").hidden = true; pickPhase(); };
-$("toMenu").onclick = () => { $("end").hidden = true; showMenu(); };
+$("toMenu").onclick = showMenu;
 $("viewMap").onclick = () => {
   $("end").hidden = true;
   setLabels("k", game.order);
@@ -492,7 +777,7 @@ $("viewMap").onclick = () => {
 // Let the hint fade after the first gesture.
 svg.addEventListener("pointerdown", () => { $("hint").style.display = "none"; }, { once: true });
 
-measure(); applyVb(); hud();
+applySettings(); measure(); applyVb(true); hud();
 // Start in the menu; while it is open, show maakunta names behind it.
 game = { mode: "menu", status: {} }; setLabels("mk"); showMenu();
 </script>
