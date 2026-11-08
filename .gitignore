@@ -1,0 +1,6 @@
+# Downloaded source data (re-fetch with tools/fetch_data.sh)
+data/raw/
+
+# Smoke-test screenshots and scratch output
+*.png
+__pycache__/

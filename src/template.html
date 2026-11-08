@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Kuntavisa</title>
+<style>
+  :root {
+    --bg: #f4f6f8; --fg: #16202a; --muted: #5d6b78; --land: #dfe6ec; --stroke: #9aa9b6; --mk: #2b3a47;
+    --hover: #c9d6e1; --ok: #2e9e5b; --ok2: #d6a21e; --bad: #d64545; --accent: #1f5fa8; --card: #fff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #11161b; --fg: #e8edf2; --muted: #93a1ae; --land: #26313b; --stroke: #46545f; --mk: #b9c6d2;
+            --hover: #33424f; --card: #1a2229; --accent: #6aa6ec; }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); overflow: hidden;
+    font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
+  body { display: flex; flex-direction: column; }
+
+  header { padding: 8px 12px 6px; display: flex; flex-direction: column; gap: 5px; }
+  .row { display: flex; align-items: center; gap: 8px; }
+  .stats { flex: 1; display: flex; justify-content: space-between; font-size: 13px; color: var(--muted);
+    font-variant-numeric: tabular-nums; }
+  .icon { border: 0; background: var(--land); color: var(--fg); border-radius: 8px; height: 30px;
+    min-width: 34px; padding: 0 9px; font: inherit; font-size: 14px; cursor: pointer; }
+  .prompt { font-size: 13px; color: var(--muted); }
+  .target { font-size: 24px; font-weight: 700; letter-spacing: -0.01em; min-height: 34px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar { height: 4px; background: var(--land); border-radius: 2px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+  .tries { display: inline-flex; gap: 4px; margin-left: 8px; vertical-align: middle; }
+  .tries b { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); display: inline-block; }
+  .tries b.used { background: var(--land); }
+
+  main { flex: 1; min-height: 0; position: relative; }
+  svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  path.k { fill: var(--land); stroke: var(--stroke); stroke-width: 0.6; vector-effect: non-scaling-stroke;
+    stroke-linejoin: round; transition: fill .15s, opacity .3s; }
+  path.k.out { opacity: .2; pointer-events: none; }
+  path.k.ok1 { fill: var(--ok); }
+  path.k.ok2 { fill: var(--ok2); }
+  path.k.fail { fill: var(--bad); }
+  path.k.pick { fill: var(--hover); }
+  path.k.flash { animation: flash .6s; }
+  path.k.reveal { animation: reveal .8s 2; }
+  @keyframes flash { 0%,100% { fill: var(--land); } 30% { fill: var(--bad); } }
+  @keyframes reveal { 0%,100% { fill: var(--bad); } 50% { fill: var(--land); } }
+  path.mk { fill: none; stroke: var(--mk); stroke-width: 1.6; vector-effect: non-scaling-stroke;
+    stroke-linejoin: round; pointer-events: none; }
+  text.lbl { fill: #fff; font-weight: 600; text-anchor: middle; dominant-baseline: middle; pointer-events: none;
+    paint-order: stroke; stroke: rgba(0,0,0,.5); stroke-width: 2.5px; vector-effect: non-scaling-stroke; }
+  text.lbl.mkl { fill: var(--fg); stroke: var(--bg); font-weight: 700; }
+
+  .toast { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); background: var(--fg);
+    color: var(--bg); padding: 6px 12px; border-radius: 8px; font-size: 14px; opacity: 0;
+    transition: opacity .2s; pointer-events: none; white-space: nowrap; z-index: 2; }
+  .toast.show { opacity: .92; }
+  .hint { position: absolute; bottom: 8px; left: 0; right: 0; text-align: center; font-size: 12px;
+    color: var(--muted); pointer-events: none; }
+
+  .overlay { position: fixed; inset: 0; background: rgba(10,15,20,.55); display: flex;
+    align-items: center; justify-content: center; padding: 16px; z-index: 5; }
+  .overlay[hidden] { display: none; }
+  .card { background: var(--card); border-radius: 14px; padding: 22px; max-width: 380px; width: 100%;
+    max-height: 90vh; overflow: auto; box-shadow: 0 10px 40px rgba(0,0,0,.25); }
+  .card h1 { margin: 0 0 6px; font-size: 24px; }
+  .card p { margin: 6px 0; color: var(--muted); }
+  .big { font-size: 40px; font-weight: 800; color: var(--fg); margin: 8px 0 0; font-variant-numeric: tabular-nums; }
+  .card ul { padding-left: 18px; margin: 6px 0; color: var(--fg); columns: 2; column-gap: 16px; font-size: 14px; }
+  button.main { font: inherit; font-weight: 600; border: 0; border-radius: 10px; padding: 12px 18px;
+    background: var(--accent); color: #fff; width: 100%; margin-top: 12px; cursor: pointer; text-align: left; }
+  button.main small { display: block; font-weight: 400; opacity: .85; font-size: 13px; }
+  button.sec { background: var(--land); color: var(--fg); }
+  button.ghost { font: inherit; border: 0; background: transparent; color: var(--muted); padding: 8px 4px;
+    margin-top: 6px; font-size: 14px; cursor: pointer; }
+  /* CC BY 4.0 source attribution in the start menu */
+  .card p.credit { margin-top: 14px; font-size: 11px; line-height: 1.35; }
+  .credit a { color: inherit; }
+</style>
+</head>
+<body>
+<header>
+  <div class="row">
+    <button class="icon" id="menuBtn" title="Valikko">☰</button>
+    <div class="stats">
+      <span id="progress"></span>
+      <span id="score"></span>
+      <span id="timer"></span>
+    </div>
+    <button class="icon" id="fitBtn" title="Koko näkymä">⤢</button>
+  </div>
+  <div class="bar"><i id="bar"></i></div>
+  <div class="prompt" id="prompt">&nbsp;</div>
+  <div class="target" id="target">&nbsp;</div>
+</header>
+<main id="main">
+  <svg id="map">
+    <g id="gK"></g><g id="gM"></g><g id="gL"></g>
+  </svg>
+  <div class="toast" id="toast"></div>
+  <div class="hint" id="hint">Nipistä tai vieritä zoomataksesi, vedä siirtääksesi</div>
+</main>
+
+<!-- Start menu -->
+<div class="overlay" id="start">
+  <div class="card">
+    <h1>Kuntavisa</h1>
+    <p>Napauta kartalta kysyttyä kuntaa. Kolme yritystä per kunta: vihreä = ensimmäisellä,
+      keltainen = 2. tai 3. yrityksellä, punainen = ei löytynyt.</p>
+    <button class="main" id="modeMk">Maakunta<small>Valitse maakunta kartalta ja tunnista sen kunnat</small></button>
+    <button class="main" id="modeAll">Koko Suomi<small>Kaikki 308 kuntaa satunnaisessa järjestyksessä</small></button>
+    <button class="main sec" id="resumeAll" hidden></button>
+    <p class="credit">Kunta- ja maakuntarajat: Tilastokeskus, ladattu rajapintapalvelusta 07.11.2026,
+      <a href="https://creativecommons.org/licenses/by/4.0/deed.fi" target="_blank" rel="noopener">CC BY 4.0</a></p>
+  </div>
+</div>
+
+<!-- Result card -->
+<div class="overlay" id="end" hidden>
+  <div class="card">
+    <h1 id="endTitle">Valmis!</h1>
+    <div class="big" id="endScore"></div>
+    <p id="endDetail"></p>
+    <div id="missWrap"></div>
+    <button class="main" id="again">Pelaa uudelleen</button>
+    <button class="main sec" id="otherMk">Valitse toinen maakunta</button>
+    <button class="ghost" id="viewMap">Näytä kartta nimillä</button>
+    <button class="ghost" id="toMenu">Päävalikko</button>
+  </div>
+</div>
+
+<script>
+// Boundaries: Statistics Finland kunnat & maakunnat 2025 (1:1 000 000), EPSG:3067,
+// simplified; 1 SVG unit = 1 km, y flipped so north is up.
+const DATA = __DATA__;
+const MAX_TRIES = 3;
+const SAVE_KEY = "kuntavisa-koko-v1";
+const NS = "http://www.w3.org/2000/svg";
+const $ = id => document.getElementById(id);
+const svg = $("map"), gK = $("gK"), gM = $("gM"), gL = $("gL");
+
+// ---------- map construction ----------
+const K = {};                       // kunta id -> data (+ .el)
+const MK = {};                      // maakunta id -> data (+ .kunnat[])
+for (const m of DATA.maakunnat) { MK[m.id] = { ...m, kunnat: [] }; }
+for (const k of DATA.kunnat) {
+  const p = document.createElementNS(NS, "path");
+  p.setAttribute("d", k.d);
+  p.setAttribute("fill-rule", "evenodd");
+  p.setAttribute("class", "k");
+  p.dataset.id = k.id;
+  gK.appendChild(p);
+  K[k.id] = { ...k, el: p };
+  MK[k.m].kunnat.push(k.id);
+}
+for (const m of DATA.maakunnat) {
+  const p = document.createElementNS(NS, "path");
+  p.setAttribute("d", m.d);
+  p.setAttribute("fill-rule", "evenodd");
+  p.setAttribute("class", "mk");
+  gM.appendChild(p);
+}
+const FULL = { x: -8, y: -8, w: DATA.w + 16, h: DATA.h + 16 };
+
+// ---------- view (viewBox) handling ----------
+// vb always has the same aspect ratio as the element, so screen<->map is a plain scale + offset.
+let vb = { ...FULL }, elW = 1, elH = 1, labelMode = null;
+
+function measure() {
+  const r = svg.getBoundingClientRect();
+  elW = r.width || 1; elH = r.height || 1;
+}
+function applyVb() {
+  vb.h = vb.w * elH / elW;
+  svg.setAttribute("viewBox", `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+  if (labelMode) updateLabels();
+}
+// Smallest view (aspect-correct) containing box b=[x0,y0,x1,y1] with padding fraction pad.
+function boxView(b, pad = 0.06) {
+  let w = b[2] - b[0], h = b[3] - b[1];
+  const cx = (b[0] + b[2]) / 2, cy = (b[1] + b[3]) / 2;
+  w *= 1 + 2 * pad; h *= 1 + 2 * pad;
+  if (w / h < elW / elH) w = h * elW / elH;
+  return { x: cx - w / 2, y: cy - (w * elH / elW) / 2, w };
+}
+function clampW(w) { return Math.min(Math.max(w, 4), FULL.w * 2.5); }
+function zoomAt(px, py, f) {                       // zoom by factor f around screen point
+  const mx = vb.x + px / elW * vb.w, my = vb.y + py / elH * vb.h;
+  const nw = clampW(vb.w / f);
+  vb.x = mx - (px / elW) * nw; vb.y = my - (py / elH) * (nw * elH / elW); vb.w = nw;
+  applyVb();
+}
+let anim = null;
+function animateTo(t, ms = 450) {
+  cancelAnimationFrame(anim);
+  const s = { ...vb }, t0 = performance.now();
+  const step = now => {
+    const u = Math.min(1, (now - t0) / ms), e = u < .5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2;
+    vb.x = s.x + (t.x - s.x) * e; vb.y = s.y + (t.y - s.y) * e; vb.w = s.w + (t.w - s.w) * e;
+    applyVb();
+    if (u < 1) anim = requestAnimationFrame(step);
+  };
+  anim = requestAnimationFrame(step);
+}
+function fitView() {
+  if (game && game.mode === "mk" && game.mk) return boxView(MK[game.mk].b);
+  return boxView([FULL.x, FULL.y, FULL.x + FULL.w, FULL.y + FULL.h], 0);
+}
+
+// ---------- gestures: pan, pinch, wheel, tap ----------
+const ptrs = new Map();
+let gesture = null;                  // {moved, multi, sx, sy}
+svg.addEventListener("pointerdown", e => {
+  svg.setPointerCapture(e.pointerId);
+  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  cancelAnimationFrame(anim);
+  if (ptrs.size === 1) gesture = { moved: false, multi: false, sx: e.clientX, sy: e.clientY };
+  else if (gesture) gesture.multi = true;
+});
+svg.addEventListener("pointermove", e => {
+  if (!ptrs.has(e.pointerId)) return;
+  const prev = ptrs.get(e.pointerId), r = svg.getBoundingClientRect();
+  if (ptrs.size === 1) {
+    if (!gesture.moved && Math.hypot(e.clientX - gesture.sx, e.clientY - gesture.sy) < 7) return;
+    gesture.moved = true;
+    vb.x -= (e.clientX - prev.x) / elW * vb.w;
+    vb.y -= (e.clientY - prev.y) / elH * vb.h;
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    applyVb();
+  } else if (ptrs.size === 2) {
+    // pinch: zoom by distance ratio around the midpoint, pan by midpoint movement
+    const [a, b] = [...ptrs.values()];
+    const other = a === prev ? b : a;
+    const d0 = Math.hypot(prev.x - other.x, prev.y - other.y);
+    const d1 = Math.hypot(e.clientX - other.x, e.clientY - other.y);
+    const m0 = { x: (prev.x + other.x) / 2 - r.left, y: (prev.y + other.y) / 2 - r.top };
+    const m1 = { x: (e.clientX + other.x) / 2 - r.left, y: (e.clientY + other.y) / 2 - r.top };
+    vb.x -= (m1.x - m0.x) / elW * vb.w; vb.y -= (m1.y - m0.y) / elH * vb.h;
+    if (d0 > 0) zoomAt(m1.x, m1.y, d1 / d0); else applyVb();
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    gesture.moved = true;
+  }
+});
+function endPtr(e) {
+  if (!ptrs.has(e.pointerId)) return;
+  ptrs.delete(e.pointerId);
+  if (ptrs.size === 0 && gesture) {
+    const g = gesture; gesture = null;
+    if (!g.moved && !g.multi) {
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      if (el && el.dataset && el.dataset.id) onTap(el.dataset.id);
+    }
+  }
+}
+svg.addEventListener("pointerup", endPtr);
+svg.addEventListener("pointercancel", e => { ptrs.delete(e.pointerId); if (!ptrs.size) gesture = null; });
+svg.addEventListener("wheel", e => {
+  e.preventDefault();
+  const r = svg.getBoundingClientRect();
+  zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015));
+}, { passive: false });
+window.addEventListener("resize", () => {
+  const cx = vb.x + vb.w / 2, cy = vb.y + vb.h / 2;
+  measure(); vb.h = vb.w * elH / elW; vb.x = cx - vb.w / 2; vb.y = cy - vb.h / 2; applyVb();
+});
+$("fitBtn").onclick = () => animateTo(fitView());
+
+// ---------- labels (review view) ----------
+// Show a name only where it fits on screen at the current zoom; font stays ~12 px.
+function buildLabels(ids, mkLabels) {
+  gL.innerHTML = "";
+  const list = mkLabels
+    ? DATA.maakunnat.map(m => {                // label at the mean of its kunta centroids
+        const ks = MK[m.id].kunnat.map(id => K[id]);
+        return { n: m.n, b: m.b, mk: true,
+                 cx: Math.max(32, ks.reduce((s, k) => s + k.cx, 0) / ks.length),   // keep Ahvenanmaa label on-screen
+                 cy: ks.reduce((s, k) => s + k.cy, 0) / ks.length };
+      })
+    : ids.map(id => K[id]);
+  for (const k of list) {
+    const t = document.createElementNS(NS, "text");
+    t.setAttribute("x", k.cx); t.setAttribute("y", k.cy);
+    t.setAttribute("class", "lbl" + (k.mk ? " mkl" : ""));
+    t.textContent = k.n;
+    t._k = k;
+    gL.appendChild(t);
+  }
+  updateLabels();
+}
+function updateLabels() {
+  const px = elW / vb.w;                       // screen px per km
+  gL.setAttribute("font-size", 12 / px);
+  for (const t of gL.children) {
+    const k = t._k, wpx = (k.b[2] - k.b[0]) * px;
+    t.style.display = wpx > k.n.length * (labelMode === "mk" ? 3.2 : 6.5) ? "" : "none";
+  }
+}
+function setLabels(mode, ids) {
+  labelMode = mode;
+  if (!mode) { gL.innerHTML = ""; return; }
+  buildLabels(ids, mode === "mk");
+}
+
+// ---------- game state ----------
+let game = null, tick = null;
+
+function shuffle(a) {                           // Fisher–Yates
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function fmt(ms) {
+  const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60;
+  return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(s % 60).padStart(2, "0");
+}
+function elapsed() { return game.elapsed + (game.t0 ? Date.now() - game.t0 : 0); }
+function startClock() {
+  game.t0 = Date.now(); clearInterval(tick);
+  tick = setInterval(() => { $("timer").textContent = fmt(elapsed()); }, 250);
+}
+function stopClock() { if (game && game.t0) { game.elapsed = elapsed(); game.t0 = 0; } clearInterval(tick); }
+
+function paint() {                               // apply per-kunta classes from game state
+  for (const id in K) {
+    let c = "k";
+    if (game.mode === "mk" && game.mk && K[id].m !== game.mk) c += " out";
+    if (game.status[id]) c += " done " + game.status[id];
+    K[id].el.setAttribute("class", c);
+  }
+}
+
+function hud() {
+  if (!game || !game.order) {
+    $("progress").textContent = ""; $("score").textContent = ""; $("timer").textContent = "";
+    $("bar").style.width = "0"; return;
+  }
+  const n = game.order.length;
+  $("progress").textContent = `${Math.min(game.idx + 1, n)} / ${n}`;
+  $("score").textContent = `Oikein ${game.firstTry}`;
+  $("timer").textContent = fmt(elapsed());
+  $("bar").style.width = `${(game.idx / n) * 100}%`;
+  if (game.idx < n) {
+    $("prompt").innerHTML = "Napauta kuntaa<span class='tries'>" +
+      Array.from({ length: MAX_TRIES }, (_, i) => `<b class="${i < MAX_TRIES - game.tries ? "used" : ""}"></b>`).join("") +
+      "</span>";
+    $("target").textContent = K[game.order[game.idx]].n;
+  }
+}
+
+function newRound(mode, mk) {
+  stopClock();
+  game = { mode, mk, order: shuffle(mk ? MK[mk].kunnat.slice() : Object.keys(K)),
+           idx: 0, tries: MAX_TRIES, firstTry: 0, totalMiss: 0, failed: [], status: {}, elapsed: 0, t0: 0 };
+  setLabels(null);
+  paint(); hud(); startClock(); save();
+  animateTo(fitView(), 600);
+}
+
+// Maakunta mode, phase 1: pick a region on the map.
+function pickPhase() {
+  stopClock();
+  game = { mode: "mk", mk: null, status: {}, order: null };
+  paint(); hud();
+  $("prompt").textContent = "Maakunta-tila";
+  $("target").textContent = "Valitse maakunta";
+  setLabels("mk");
+  animateTo(fitView(), 500);
+}
+
+// ---------- persistence (Koko Suomi only; best effort) ----------
+function save() {
+  if (!game || game.mode !== "all") return;
+  try {
+    const s = { ...game, elapsed: elapsed(), t0: 0 };
+    if (s.idx >= s.order.length) localStorage.removeItem(SAVE_KEY);
+    else localStorage.setItem(SAVE_KEY, JSON.stringify(s));
+  } catch (_) {}
+}
+function loadSaved() {
+  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); return s && s.order ? s : null; }
+  catch (_) { return null; }
+}
+
+// ---------- taps ----------
+let toastT;
+function toast(msg) {
+  const el = $("toast");
+  el.textContent = msg; el.classList.add("show");
+  clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove("show"), 1200);
+}
+
+function onTap(id) {
+  if (!game) return;
+  if (game.mode === "mk" && !game.mk) { newRound("mk", K[id].m); return; }   // region chosen
+  if (game.locked) return;
+  if (game.idx >= game.order.length) { toast(K[id].n); return; }
+  if (game.status[id]) { toast(K[id].n); return; }                          // already answered
+  const tid = game.order[game.idx];
+  if (id === tid) {
+    game.status[id] = game.tries === MAX_TRIES ? "ok1" : "ok2";
+    if (game.tries === MAX_TRIES) game.firstTry++;
+    advance(); return;
+  }
+  // wrong: flash, name it, consume a try
+  game.tries--; game.totalMiss++;
+  const p = K[id].el;
+  p.classList.remove("flash"); void p.getBBox(); p.classList.add("flash");
+  setTimeout(() => p.classList.remove("flash"), 650);
+  toast(`Tuo on ${K[id].n}`);
+  if (game.tries > 0) { hud(); save(); return; }
+
+  // out of tries: reveal the right one (bring it into view if needed), then continue
+  game.failed.push(K[tid].n);
+  game.status[tid] = "fail";
+  revealInView(tid);
+  game.locked = true; hud();
+  paint(); K[tid].el.classList.add("reveal");
+  setTimeout(() => { K[tid].el.classList.remove("reveal"); game.locked = false; advance(); }, 1700);
+}
+
+function revealInView(id) {
+  const b = K[id].b, px = elW / vb.w;
+  const sizePx = Math.max(b[2] - b[0], b[3] - b[1]) * px;
+  const inside = b[0] > vb.x && b[2] < vb.x + vb.w && b[1] > vb.y && b[3] < vb.y + vb.h;
+  if (inside && sizePx >= 18) return;
+  const w = sizePx < 18 ? Math.max(b[2] - b[0], b[3] - b[1]) * elW / 40 : vb.w;   // ~40 px target
+  const cx = (b[0] + b[2]) / 2, cy = (b[1] + b[3]) / 2;
+  animateTo({ x: cx - w / 2, y: cy - (w * elH / elW) / 2, w });
+}
+
+function advance() {
+  game.idx++; game.tries = MAX_TRIES;
+  paint(); hud(); save();
+  if (game.idx >= game.order.length) finish();
+}
+
+function finish() {
+  stopClock(); save();
+  const n = game.order.length;
+  $("bar").style.width = "100%";
+  $("prompt").textContent = game.mode === "mk" ? MK[game.mk].n : "Koko Suomi";
+  $("target").textContent = "Valmis";
+  $("endTitle").textContent = game.mode === "mk" ? `${MK[game.mk].n} valmis!` : "Koko Suomi valmis!";
+  $("endScore").textContent = `${game.firstTry} / ${n}`;
+  $("endDetail").textContent = `ensimmäisellä yrityksellä · aika ${fmt(game.elapsed)} · virheitä ${game.totalMiss}`;
+  $("missWrap").innerHTML = game.failed.length
+    ? `<p>Jäi löytämättä (${game.failed.length}):</p><ul>${game.failed.map(f => `<li>${f}</li>`).join("")}</ul>`
+    : `<p>Kaikki löytyivät!</p>`;
+  $("otherMk").hidden = game.mode !== "mk";
+  setTimeout(() => { $("end").hidden = false; }, 350);
+}
+
+// ---------- menus ----------
+function showMenu() {
+  stopClock(); save();
+  const s = loadSaved();
+  const r = $("resumeAll");
+  r.hidden = !s;
+  if (s) r.innerHTML = `Jatka Koko Suomi -peliä<small>${s.idx} / ${s.order.length} tehty · ${fmt(s.elapsed)}</small>`;
+  $("start").hidden = false;
+}
+$("menuBtn").onclick = () => { $("end").hidden = true; showMenu(); };
+$("modeMk").onclick = () => { $("start").hidden = true; pickPhase(); };
+$("modeAll").onclick = () => {
+  $("start").hidden = true;
+  try { localStorage.removeItem(SAVE_KEY); } catch (_) {}
+  newRound("all", null);
+};
+$("resumeAll").onclick = () => {
+  const s = loadSaved(); if (!s) return;
+  $("start").hidden = true;
+  game = s; game.locked = false; game.tries = game.tries || MAX_TRIES;
+  setLabels(null); paint(); startClock(); hud(); animateTo(fitView(), 500);
+};
+$("again").onclick = () => { $("end").hidden = true; newRound(game.mode, game.mk); };
+$("otherMk").onclick = () => { $("end").hidden = true; pickPhase(); };
+$("toMenu").onclick = () => { $("end").hidden = true; showMenu(); };
+$("viewMap").onclick = () => {
+  $("end").hidden = true;
+  setLabels("k", game.order);
+  $("target").innerHTML = "";
+  const b = document.createElement("button");
+  b.className = "icon"; b.textContent = "Tulokset";
+  b.onclick = () => { $("end").hidden = false; };
+  $("target").appendChild(b);
+};
+
+// Let the hint fade after the first gesture.
+svg.addEventListener("pointerdown", () => { $("hint").style.display = "none"; }, { once: true });
+
+measure(); applyVb(); hud();
+// Start in the menu; while it is open, show maakunta names behind it.
+game = { mode: "menu", status: {} }; setLabels("mk"); showMenu();
+</script>
+</body>
+</html>
